@@ -1,5 +1,7 @@
 # SubD — subdivision modelling for IngeTrazo
 
+![SubD: cage, smooth piece, solid](screenshots/subdiv.png)
+
 Model smooth, organic shapes (lamps, chairs, tables, furniture) from a coarse
 control **cage**: push, pinch, crease and divide a few faces and the
 Catmull-Clark surface follows. When you are happy, **Finish** turns it into an
