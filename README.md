@@ -2,7 +2,7 @@
 
 ![SubD: cage, smooth piece, solid](screenshots/subdiv.png)
 
-▶ **Video tutorial:** [SubD tool for IngeTrazo((https://youtube.com/shorts/uhIoH_zuSDM?si=kr7fDxFeQO5eZX5q))
+▶ **Video tutorial:** [SubD tool for IngeTrazo(https://youtube.com/shorts/uhIoH_zuSDM?si=kr7fDxFeQO5eZX5q)
 
 Model smooth, organic shapes (lamps, chairs, tables, furniture) from a coarse
 control **cage**: push, pinch, crease and divide a few faces and the
