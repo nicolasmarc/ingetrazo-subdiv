@@ -3,13 +3,13 @@
 # (python tools/build_zip.py prints it).
 
 id = "subdiv"
-version = "1.0"
+version = "1.1"
 author = "Nicolas Marc"
 author_url = "https://github.com/nicolasmarc"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/nicolasmarc/ingetrazo-subdiv"
-download = "https://raw.githubusercontent.com/nicolasmarc/ingetrazo-subdiv/v1.0/dist/subdiv-1.0.zip"
-sha256 = "4c721282bfbbcc691793d77c870109539b6848c0bf3c146a16676003ff3c625a"
+download = "https://raw.githubusercontent.com/nicolasmarc/ingetrazo-subdiv/v1.1/dist/subdiv-1.1.zip"
+sha256 = "8c0ca1e5f0df8da1cee28483e0acb160a736517da20d9141d86399d84d1d2d5d"
 ingetrazo = "0.5.7"
 tags = ["architecture", "drawing"]
 # screenshot = "subdiv.png"

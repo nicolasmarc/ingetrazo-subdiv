@@ -7,7 +7,7 @@ The interface (``panel.py``) is imported only then, so the geometry modules
 (``subdivide``, ``edit``, ``follow``, ``group``, ``ops``) stay pure Python and
 can be tested without Qt or IngeTrazo.
 """
-__version__ = "1.0"
+__version__ = "1.1"
 
 
 def setup(app) -> None:

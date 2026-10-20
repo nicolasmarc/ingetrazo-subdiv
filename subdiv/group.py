@@ -21,6 +21,8 @@ surface.
 """
 from __future__ import annotations
 
+from .lang import T as _T
+
 import math
 from types import SimpleNamespace
 
@@ -263,10 +265,9 @@ def cage_from_mesh(mesh, max_faces: int = MAX_CAGE_FACES):
         if getattr(face, "hole_loops", None):
             holes += 1
     if not faces:
-        raise ValueError("That group has no faces to convert")
+        raise ValueError(_T("That group has no faces to convert"))
     if len(faces) > max_faces:
-        raise ValueError(f"That group has {len(faces)} faces: a cage should be coarse "
-                         f"(under {max_faces}). Simplify it first.")
+        raise ValueError(_T('That group has {v0} faces: a cage should be coarse (under {max_faces}). Simplify it first.', v0=len(faces), max_faces=max_faces))
     cage = Cage(verts, faces, None, colors)
     cage.orient()
     return cage, holes

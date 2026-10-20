@@ -49,6 +49,7 @@ from PySide6.QtWidgets import (
 from core import units
 from . import group as subdiv_group
 from . import ops as subdiv_ops
+from .lang import T
 from core.group import Group
 from core.history import Command
 from core.mesh import Mesh
@@ -118,7 +119,7 @@ class SubdPanel(QWidget):
 
         lay = QVBoxLayout(self)
         row = QHBoxLayout()
-        row.addWidget(QLabel("SubD group"))
+        row.addWidget(QLabel(T("SubD group")))
         self.groups = QComboBox()
         self.groups.currentIndexChanged.connect(self._on_group_chosen)
         row.addWidget(self.groups, 1)
@@ -130,11 +131,11 @@ class SubdPanel(QWidget):
         for n, spec in enumerate(subdiv_ops.TOOL_SPECS):
             b = QToolButton()
             b.setCheckable(True)
-            b.setText(spec.label)
+            b.setText(T(spec.label))
             b.setIcon(_icon(spec.icon))
             b.setIconSize(QSize(34, 34))
             b.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-            b.setToolTip(f"{spec.label} — {spec.tip}")
+            b.setToolTip(f"{T(spec.label)} — {self._tip(spec)}")
             b.setAutoRaise(True)
             b.clicked.connect(lambda _c=False, k=spec.key: self._pick_tool(k))
             self.buttons.addButton(b)
@@ -153,29 +154,29 @@ class SubdPanel(QWidget):
         self.value.setDecimals(2)
         vrow.addWidget(self.value, 1)
         self.axis = QComboBox()
-        for text, data in (("Auto", "auto"), ("X", "x"), ("Y", "y"), ("Z", "z")):
+        for text, data in ((T("Auto"), "auto"), ("X", "x"), ("Y", "y"), ("Z", "z")):
             self.axis.addItem(text, data)
-        self.axis.setToolTip("Direction for Edit, Stretch and Squeeze "
-                             "(Auto: the face's normal / ring)")
+        self.axis.setToolTip(T("Direction for Edit, Stretch and Squeeze "
+                             "(Auto: the face's normal / ring)"))
         vrow.addWidget(self.axis)
         self.side = QComboBox()
-        for text, data in (("Outside", "outside"), ("Inside", "inside"), ("Centred", "center")):
+        for text, data in ((T("Outside"), "outside"), (T("Inside"), "inside"), (T("Centred"), "center")):
             self.side.addItem(text, data)
-        self.side.setToolTip("Where the wall grows from the current surface")
+        self.side.setToolTip(T("Where the wall grows from the current surface"))
         vrow.addWidget(self.side)
         self.cut = QComboBox()
-        for text, data in (("Whole loop", "loop"), ("Only this face", "face")):
+        for text, data in ((T("Whole loop"), "loop"), (T("Only this face"), "face")):
             self.cut.addItem(text, data)
-        self.cut.setToolTip("Divide a face or an edge. Whole loop: the cut runs on round the "
+        self.cut.setToolTip(T("Divide a face or an edge. Whole loop: the cut runs on round the "
                             "piece through the quads beyond (clean quads). Only this face: "
                             "just the face (or the faces touching the edge) is cut; the "
-                            "neighbours get an extra point.")
+                            "neighbours get an extra point."))
         vrow.addWidget(self.cut)
         lay.addLayout(vrow)
 
         self.selection_label = QLabel()
         lay.addWidget(self.selection_label)
-        self.apply_btn = QPushButton("Apply")
+        self.apply_btn = QPushButton(T("Apply"))
         self.apply_btn.clicked.connect(self.apply)
         lay.addWidget(self.apply_btn)
         self.status = QLabel()                     # right under Apply, so the answer is
@@ -183,139 +184,139 @@ class SubdPanel(QWidget):
         lay.addWidget(self.status)
 
         sym = QHBoxLayout()
-        self.sym_box = QCheckBox("Symmetry")
-        self.sym_box.setToolTip("Repeat every edit on the other side of the plane.")
+        self.sym_box = QCheckBox(T("Symmetry"))
+        self.sym_box.setToolTip(T("Repeat every edit on the other side of the plane."))
         self.sym_box.toggled.connect(self._sym_toggled)
         sym.addWidget(self.sym_box)
         self.sym_axis = QComboBox()
         for text, data in (("X", (1.0, 0.0, 0.0)), ("Y", (0.0, 1.0, 0.0)),
                            ("Z", (0.0, 0.0, 1.0))):
             self.sym_axis.addItem(text, data)
-        self.sym_axis.setToolTip("Axis the plane is perpendicular to.")
+        self.sym_axis.setToolTip(T("Axis the plane is perpendicular to."))
         sym.addWidget(self.sym_axis)
-        centre = QPushButton("Centre")
-        centre.setToolTip("Put the plane through the middle of the piece.")
+        centre = QPushButton(T("Centre"))
+        centre.setToolTip(T("Put the plane through the middle of the piece."))
         centre.clicked.connect(self._sym_centre)
         sym.addWidget(centre)
-        face = QPushButton("From face")
-        face.setToolTip("Use the plane of the selected face.")
+        face = QPushButton(T("From face"))
+        face.setToolTip(T("Use the plane of the selected face."))
         face.clicked.connect(self._sym_from_face)
         sym.addWidget(face)
         lay.addLayout(sym)
 
         join = QHBoxLayout()
-        join.addWidget(QLabel("Join with"))
+        join.addWidget(QLabel(T("Join with")))
         self.join_with = QComboBox()
-        self.join_with.setToolTip("Another SubD group to merge into this one, "
-                                  "so Bridge can link their openings.")
+        self.join_with.setToolTip(T("Another SubD group to merge into this one, "
+                                  "so Bridge can link their openings."))
         join.addWidget(self.join_with, 1)
-        join_btn = QPushButton("Join")
+        join_btn = QPushButton(T("Join"))
         join_btn.clicked.connect(self.join)
         join.addWidget(join_btn)
-        split_btn = QPushButton("Split")
-        split_btn.setToolTip("Undo a Join: every separate piece of this group "
-                             "becomes its own SubD group again.")
+        split_btn = QPushButton(T("Split"))
+        split_btn.setToolTip(T("Undo a Join: every separate piece of this group "
+                             "becomes its own SubD group again."))
         split_btn.clicked.connect(self.split)
         join.addWidget(split_btn)
         lay.addLayout(join)
 
         conv = QHBoxLayout()
-        conv.addWidget(QLabel("Convert group"))
+        conv.addWidget(QLabel(T("Convert group")))
         self.convertible = QComboBox()
-        self.convertible.setToolTip("Groups not made by this plugin. Their faces become "
-                                    "the cage, so use a coarse one (under 7000 faces; editing gets slow above a few hundred).")
+        self.convertible.setToolTip(T("Groups not made by this plugin. Their faces become "
+                                    "the cage, so use a coarse one (under 7000 faces; editing gets slow above a few hundred)."))
         conv.addWidget(self.convertible, 1)
         lay.addLayout(conv)
         conv2 = QHBoxLayout()
-        conv2.addWidget(QLabel("Crease edges over"))
+        conv2.addWidget(QLabel(T("Crease edges over")))
         self.angle = QDoubleSpinBox()
         self.angle.setRange(0.0, 180.0)
         self.angle.setDecimals(0)
         self.angle.setValue(30.0)
         self.angle.setSuffix("°")
-        self.angle.setToolTip("Edges where two faces meet at more than this angle stay "
-                              "sharp. 0 = no automatic creases (everything rounds).")
+        self.angle.setToolTip(T("Edges where two faces meet at more than this angle stay "
+                              "sharp. 0 = no automatic creases (everything rounds)."))
         conv2.addWidget(self.angle)
-        convert = QPushButton("Convert to SubD")
-        convert.setToolTip("Replace the chosen group by a SubD group built on its faces. "
-                           "Ctrl+Z brings the original back.")
+        convert = QPushButton(T("Convert to SubD"))
+        convert.setToolTip(T("Replace the chosen group by a SubD group built on its faces. "
+                           "Ctrl+Z brings the original back."))
         convert.clicked.connect(self.convert)
         conv2.addWidget(convert, 1)
         lay.addLayout(conv2)
-        self.sharp_create = QCheckBox("Create with sharp edges (angle above)")
+        self.sharp_create = QCheckBox(T("Create with sharp edges (angle above)"))
         self.sharp_create.setToolTip(
-            "Create then gives a crisp box instead of a rounded block: the edges of the "
+            T("Create then gives a crisp box instead of a rounded block: the edges of the "
             "new box stay sharp when the angle above is below 90 degrees (30 is fine). "
-            "Stretch, Grow and Shell then work on a rectilinear piece.")
+            "Stretch, Grow and Shell then work on a rectilinear piece."))
         lay.addWidget(self.sharp_create)
 
         look = QHBoxLayout()
-        look.addWidget(QLabel("Smoothing"))
+        look.addWidget(QLabel(T("Smoothing")))
         self.levels = QSpinBox()
         self.levels.setRange(0, 4)
         self.levels.setValue(4)
-        self.levels.setToolTip("Subdivision steps: 0 is the cage itself.")
+        self.levels.setToolTip(T("Subdivision steps: 0 is the cage itself."))
         look.addWidget(self.levels)
-        self.auto = QCheckBox("Auto")
+        self.auto = QCheckBox(T("Auto"))
         self.auto.setChecked(True)
-        self.auto.setToolTip("Smoothest level that keeps the surface under "
-                             "about 25 000 triangles; uncheck to choose it yourself.")
+        self.auto.setToolTip(T("Smoothest level that keeps the surface under "
+                             "about 25 000 triangles; uncheck to choose it yourself."))
         self.auto.toggled.connect(self._on_auto)
         look.addWidget(self.auto)
         self.lines = QComboBox()
-        for text, data in (("Cage lines", "cage"), ("All edges", "all"), ("No lines", "none")):
+        for text, data in ((T("Cage lines"), "cage"), (T("All edges"), "all"), (T("No lines"), "none")):
             self.lines.addItem(text, data)
         look.addWidget(self.lines, 1)
         lay.addLayout(look)
-        upd = QPushButton("Update look")
-        upd.setToolTip("Rebuild the surface with this smoothing and these lines.")
+        upd = QPushButton(T("Update look"))
+        upd.setToolTip(T("Rebuild the surface with this smoothing and these lines."))
         upd.clicked.connect(self.update_look)
-        flip = QPushButton("Flip faces")
-        flip.setToolTip("Blue faces are seen from behind. Flip turns the whole piece "
-                        "inside out so the front and the back swap.")
+        flip = QPushButton(T("Flip faces"))
+        flip.setToolTip(T("Blue faces are seen from behind. Flip turns the whole piece "
+                        "inside out so the front and the back swap."))
         flip.clicked.connect(self.flip)
         urow = QHBoxLayout()
         urow.addWidget(upd)
         urow.addWidget(flip)
         lay.addLayout(urow)
         frow = QHBoxLayout()
-        frow.addWidget(QLabel("Finish detail"))
+        frow.addWidget(QLabel(T("Finish detail")))
         self.finish_detail = QComboBox()
-        self.finish_detail.addItem("Automatic (light)", "auto")
-        self.finish_detail.addItem("Same as the view", None)
-        self.finish_detail.addItem("Light (1)", 1)
-        self.finish_detail.addItem("Medium (2)", 2)
-        self.finish_detail.addItem("Fine (3)", 3)
+        self.finish_detail.addItem(T("Automatic (light)"), "auto")
+        self.finish_detail.addItem(T("Same as the view"), None)
+        self.finish_detail.addItem(T("Light (1)"), 1)
+        self.finish_detail.addItem(T("Medium (2)"), 2)
+        self.finish_detail.addItem(T("Fine (3)"), 3)
         self.finish_detail.setToolTip(
-            "How finely the curved parts are cut when the piece is finished."
+            T("How finely the curved parts are cut when the piece is finished."
             " Automatic keeps the result under about %d faces so ordinary tools "
             "stay fast (the smoothest level that fits). Each step up multiplies the "
             "triangles by four. Flat faces are always single polygons, whatever you "
-            "choose." % FINISH_BUDGET)
+            "choose.") % FINISH_BUDGET)
         frow.addWidget(self.finish_detail, 1)
         lay.addLayout(frow)
-        fin = QPushButton("Finish")
-        fin.setToolTip("Finish (no longer SubD): keep the smooth surface as an ordinary "
+        fin = QPushButton(T("Finish"))
+        fin.setToolTip(T("Finish (no longer SubD): keep the smooth surface as an ordinary "
                        "group and drop the cage. If the cage is closed and sound, the "
                        "result is a Solid Group (usable with Solid Tools) and its "
                        "volume is reported; if it is still open, you get the surface "
-                       "and the reason. Undo brings the SubD group back.")
+                       "and the reason. Undo brings the SubD group back."))
         fin.clicked.connect(self.finish)
         lay.addWidget(fin)
         hrow = QHBoxLayout()
-        hrow.addWidget(QLabel("Handles"))
+        hrow.addWidget(QLabel(T("Handles")))
         self.handles = QComboBox()
-        self.handles.addItem("Move + Rotate", "both")
-        self.handles.addItem("Move only", "move")
-        self.handles.addItem("Rotate only (protractor)", "rotate")
+        self.handles.addItem(T("Move + Rotate"), "both")
+        self.handles.addItem(T("Move only"), "move")
+        self.handles.addItem(T("Rotate only (protractor)"), "rotate")
         self.handles.setToolTip(
-            "Move: drag a coloured tip to slide the selection along that axis.\n"
+            T("Move: drag a coloured tip to slide the selection along that axis.\n"
             "Rotate: drag a coloured ring to turn the selection around that axis "
             "(hold Ctrl to snap to 15 degrees).\n"
-            "Both are shown by default; pick one to keep the view clear.")
+            "Both are shown by default; pick one to keep the view clear."))
         self.handles.currentIndexChanged.connect(lambda _i: self.app.viewport.update())
         hrow.addWidget(self.handles, 1)
-        self.show_cage = QCheckBox("Show cage")
+        self.show_cage = QCheckBox(T("Show cage"))
         self.show_cage.setChecked(True)
         self.show_cage.toggled.connect(lambda _on: self.app.viewport.update())
         hrow.addWidget(self.show_cage)
@@ -355,16 +356,26 @@ class SubdPanel(QWidget):
 
     def _sync(self) -> None:
         spec = subdiv_ops.SPECS[self.tool]
-        self.hint.setText(spec.tip)
+        self.hint.setText(self._tip(spec))
         has_value = bool(spec.value_label)
-        self.value_label.setText(spec.value_label)
+        self.value_label.setText(T(spec.value_label) if spec.value_label else "")
         self.value_label.setVisible(has_value)
         self.value.setVisible(has_value)
         self.axis.setVisible(spec.axis)
         self.side.setVisible(self.tool == "shell")
         self.cut.setVisible(self.tool == "divide")
-        suffix = "  (waiting for the second opening)" if self.pending else ""
+        suffix = T("  (waiting for the second opening)") if self.pending else ""
         self.selection_label.setText(subdiv_ops.describe_many(self._sels()) + suffix)
+
+    def _unit_name(self) -> str:
+        """The unit the value box shows, in words (the help texts use it)."""
+        word = {"m": "metres", "cm": "centimetres", "mm": "millimetres", "ft": "feet"}.get(
+            self._unit, "inches" if self._unit in _SUFFIX else "metres")
+        return T(word)
+
+    def _tip(self, spec) -> str:
+        """A tool's help text, in the panel's language and the document's unit."""
+        return T(spec.tip, unit=self._unit_name()) if "{unit}" in spec.tip else T(spec.tip)
         self.apply_btn.setEnabled(True)
         self.app.viewport.update()
 
@@ -421,6 +432,8 @@ class SubdPanel(QWidget):
             keep = self._metres() if self._unit is not None else None
             self._unit, self._scale = unit, scale
             self._configure_value(keep)
+            if not self._building:              # the help text names the unit
+                self._sync()
 
     def _pick_tool(self, key: str) -> None:
         if key != self.tool:
@@ -507,7 +520,7 @@ class SubdPanel(QWidget):
             first = self._bridge_first
             if first is None or first == item:
                 self._bridge_first = item
-                self._say("Bridge: now click the other face (or an edge of the other opening)")
+                self._say(T("Bridge: now click the other face (or an edge of the other opening)"))
             else:                                     # second click: bridge straight away
                 self.extra = [first]
                 self.apply()
@@ -564,7 +577,7 @@ class SubdPanel(QWidget):
         vp.history.execute(_Swap(old, new))
         err = getattr(vp.history, "last_error", None)
         if err:
-            self._say(f"Could not apply: {err}")
+            self._say(T("Could not apply: {err}", err=err))
             return
         self.active_uid = new.uid
         notify = getattr(vp, "notify_scene_changed", None)
@@ -602,14 +615,14 @@ class SubdPanel(QWidget):
         if self.tool == "bridge":                      # click one end, Shift+click the other
             sels = self._sels()
             if len(sels) != 2:
-                raise ValueError("Bridge: select two faces (click one, Shift+click the other)")
+                raise ValueError(T("Bridge: select two faces (click one, Shift+click the other)"))
             return subdiv_ops.bridge_two(cage, sels[0], sels[1], self._metres())
         if self.tool != "edit":
-            raise ValueError("Several items are selected: use Edit cage or Crease on "
-                             "them, or click one item for this tool")
+            raise ValueError(T("Several items are selected: use Edit cage or Crease on "
+                             "them, or click one item for this tool"))
         vec = AXIS_VEC.get(self.axis.currentData())
         if vec is None:
-            raise ValueError("Choose X, Y or Z to move several items together")
+            raise ValueError(T("Choose X, Y or Z to move several items together"))
         delta = tuple(c * self._metres() for c in vec)
         subdiv_ops.symmetric_move(cage, subdiv_ops.vertex_union(cage, self._sels()),
                                   delta, cage.sym)
@@ -622,7 +635,7 @@ class SubdPanel(QWidget):
                 return
             g = self.active_group()
             if g is None:
-                raise ValueError("Create a SubD box first, or choose a SubD group")
+                raise ValueError(T("Create a SubD box first, or choose a SubD group"))
             cage, levels, lines = _state(g)
             cage = cage.copy()
             if self.extra:
@@ -657,8 +670,8 @@ class SubdPanel(QWidget):
         self.pending = None
         self._commit(None, cage, int(self.levels.value()), self.lines.currentData())
         self._clear_sel()
-        self._say("Sharp-edged SubD box created — click a point, edge or face of the cage"
-                  if sharp else "SubD box created — click a point, edge or face of the cage")
+        self._say(T("Sharp-edged SubD box created — click a point, edge or face of the cage")
+                  if sharp else T("SubD box created — click a point, edge or face of the cage"))
         self._sync()
 
     # ---- symmetry ---------------------------------------------------------------------
@@ -683,7 +696,7 @@ class SubdPanel(QWidget):
             self.sym_box.blockSignals(True)
             self.sym_box.setChecked(False)
             self.sym_box.blockSignals(False)
-            self._say("Create or choose a SubD group first")
+            self._say(T("Create or choose a SubD group first"))
             return
         cage, levels, lines = _state(g)
         cage = cage.copy()
@@ -693,31 +706,31 @@ class SubdPanel(QWidget):
         else:
             cage.sym["on"] = on
         self._write_settings(g, cage, levels, lines,
-                             "Symmetry on" if on else "Symmetry off")
+                             T("Symmetry on") if on else T("Symmetry off"))
 
     def _sym_centre(self) -> None:
         g = self.active_group()
         if g is None:
-            self._say("Create or choose a SubD group first")
+            self._say(T("Create or choose a SubD group first"))
             return
         cage, levels, lines = _state(g)
         cage = cage.copy()
         point, normal = self._plane_centre(cage)
         on = self.sym_box.isChecked() or (cage.sym is not None and cage.sym["on"])
         cage.sym = {"on": on, "point": point, "normal": normal}
-        self._write_settings(g, cage, levels, lines, "Plane set through the centre")
+        self._write_settings(g, cage, levels, lines, T("Plane set through the centre"))
 
     def _sym_from_face(self) -> None:
         g = self.active_group()
         if g is None or not self.sel or self.sel[0] != "f":
-            self._say("Select a face first: its plane becomes the symmetry plane")
+            self._say(T("Select a face first: its plane becomes the symmetry plane"))
             return
         cage, levels, lines = _state(g)
         cage = cage.copy()
         on = self.sym_box.isChecked() or (cage.sym is not None and cage.sym["on"])
         cage.sym = {"on": on, "point": cage.face_centroid(self.sel[1]),
                     "normal": cage.face_normal(self.sel[1])}
-        self._write_settings(g, cage, levels, lines, "Plane set from the face")
+        self._write_settings(g, cage, levels, lines, T("Plane set from the face"))
 
     def _draw_plane(self, painter, cage: Cage) -> None:
         sym = cage.sym
@@ -745,7 +758,7 @@ class SubdPanel(QWidget):
         uid = self.join_with.currentData()
         b = next((x for x in self.app.scene.groups if x.uid == uid), None)
         if a is None or b is None or _state(b) is None:
-            self._say("Choose a second SubD group under \"Join with\"")
+            self._say(T("Choose a second SubD group under \"Join with\""))
             return
         ca, levels, lines = _state(a)
         cage = subdiv_group.join_cages(ca, _state(b)[0])
@@ -758,14 +771,14 @@ class SubdPanel(QWidget):
         vp.history.execute(_Join(a, b, new))
         err = getattr(vp.history, "last_error", None)
         if err:
-            self._say(f"Could not join: {err}")
+            self._say(T("Could not join: {err}", err=err))
             return
         self.active_uid = new.uid
         self._clear_sel()
         notify = getattr(vp, "notify_scene_changed", None)
         if callable(notify):
             notify()
-        self._say("Joined. Choose Bridge, then click a face on each piece (Apply after each)")
+        self._say(T("Joined. Choose Bridge, then click a face on each piece (Apply after each)"))
         vp.update()
 
     def split(self) -> None:
@@ -773,14 +786,14 @@ class SubdPanel(QWidget):
         others becomes its own SubD group again."""
         g = self.active_group()
         if g is None:
-            self._say("No SubD group to split")
+            self._say(T("No SubD group to split"))
             return
         cage, levels, lines = _state(g)
         parts = cage.components()
         if len(parts) < 2:
-            self._say("Nothing to split: this is one connected piece. After a "
+            self._say(T("Nothing to split: this is one connected piece. After a "
                       "Bridge, delete the bridge's faces (Delete F) to separate the "
-                      "pieces first")
+                      "pieces first"))
             return
         vp = self.app.viewport
         news = []
@@ -798,7 +811,7 @@ class SubdPanel(QWidget):
         vp.history.execute(_Split(g, news))
         err = getattr(vp.history, "last_error", None)
         if err:
-            self._say(f"Could not split: {err}")
+            self._say(T("Could not split: {err}", err=err))
             return
         self.active_uid = news[0].uid
         self._clear_sel()
@@ -806,14 +819,14 @@ class SubdPanel(QWidget):
         notify = getattr(vp, "notify_scene_changed", None)
         if callable(notify):
             notify()
-        self._say(f"Split into {len(news)} separate SubD groups (Ctrl+Z to join them back)")
+        self._say(T("Split into {n} separate SubD groups (Ctrl+Z to join them back)", n=len(news)))
         vp.update()
 
     def convert(self) -> None:
         uid = self.convertible.currentData()
         g = next((x for x in self.app.scene.groups if x.uid == uid), None)
         if g is None:
-            self._say("No group to convert: make or import one first")
+            self._say(T("No group to convert: make or import one first"))
             return
         try:
             cage, holes = subdiv_group.cage_from_mesh(g.mesh)
@@ -825,30 +838,30 @@ class SubdPanel(QWidget):
         self.pending = None
         self._commit(g, cage, int(self.levels.value()), self.lines.currentData())
         self._clear_sel()
-        note = f" ({holes} faces lost their holes)" if holes else ""
-        self._say(f"Converted: {len(cage.faces)} faces, {creased} sharp edges{note}")
+        note = T(" ({n} faces lost their holes)", n=holes) if holes else ""
+        self._say(T("Converted: {n} faces, {k} sharp edges", n=len(cage.faces), k=creased) + note)
         self._sync()
 
     def update_look(self) -> None:
         g = self.active_group()
         if g is None:
-            self._say("No SubD group to update")
+            self._say(T("No SubD group to update"))
             return
         cage = _state(g)[0].copy()
         self._commit(g, cage, int(self.levels.value()), self.lines.currentData())
-        self._say("Look updated")
+        self._say(T("Look updated"))
 
     def flip(self) -> None:
         """Turn the whole piece inside out: the faces seen from behind (the
         blue ones) become the front, and the front ones the back."""
         g = self.active_group()
         if g is None:
-            self._say("No SubD group to flip")
+            self._say(T("No SubD group to flip"))
             return
         cage = _state(g)[0].copy()
         cage.flip()
         self._commit(g, cage, int(self.levels.value()), self.lines.currentData())
-        self._say("Faces flipped")
+        self._say(T("Faces flipped"))
 
     def finish(self) -> None:
         """Stop treating the active group as SubD: it becomes an ordinary
@@ -858,7 +871,7 @@ class SubdPanel(QWidget):
         one is finished as a plain surface. One undo step brings the cage back."""
         g = self.active_group()
         if g is None:
-            self._say("No SubD group to finish")
+            self._say(T("No SubD group to finish"))
             return
         cage, levels, lines = _state(g)
         ok, problems, vol = cage.solid_report()
@@ -874,7 +887,7 @@ class SubdPanel(QWidget):
         vp.history.execute(_Swap(g, new))
         err = getattr(vp.history, "last_error", None)
         if err:
-            self._say(f"Could not finish: {err}")
+            self._say(T("Could not finish: {err}", err=err))
             return
         self._clear_sel()
         self.pending = None
@@ -883,18 +896,22 @@ class SubdPanel(QWidget):
             notify()
         if ok:
             shown = vol / (self._scale ** 3) if self._scale else vol
-            text = (f"Finished, solid group ({_face_count(new)} faces): volume {vol:.4g} m³ "
-                    f"({shown:.6g} {_SUFFIX.get(self._unit, ' m').strip()}³)")
+            u = _SUFFIX.get(self._unit, " m").strip()
+            text = T("Finished, solid group ({n} faces): volume {v} {u}³",
+                     n=_face_count(new), v=f"{shown:.6g}", u=u)
+            if u != "m":
+                text += f" ({vol:.4g} m³)"
             try:
                 from core import solids
                 if solids.solid_volume(new) is None:
-                    text += " — not counted as a solid by Solid Tools; check for coincident points"
+                    text += T(" — not counted as a solid by Solid Tools; check for coincident points")
             except Exception:                                    # noqa: BLE001
                 pass
         else:
             why = "; ".join(p for p in problems if "re-oriented" not in p)
-            text = (f"Finished, surface only ({_face_count(new)} faces), not a solid: {why}")
-        self._say(text + " (Ctrl+Z to edit the cage again)")
+            text = T("Finished, surface only ({n} faces), not a solid: {why}",
+                     n=_face_count(new), why=why)
+        self._say(text + T(" (Ctrl+Z to edit the cage again)"))
         vp.update()
 
     # ---- drawing over the view -------------------------------------------------------
@@ -1245,8 +1262,9 @@ class SubdPanel(QWidget):
         lc["expect"] = self.sel
         self._sync()
         if first[0] == "e":
-            self._say(f"{note} ({len(items)} edge{'s' if len(items) > 1 else ''}) - "
-                      "click again for the next contour")
+            self._say((T("{note} ({n} edges) - click again for the next contour", note=T(note), n=len(items))
+                       if len(items) > 1 else
+                       T("{note} ({n} edge) - click again for the next contour", note=T(note), n=len(items))))
         self.app.viewport.update()
 
     def _toggle_pick(self, g, pos) -> bool:
@@ -1382,7 +1400,8 @@ class SubdPanel(QWidget):
             subdiv_ops.symmetric_rotate(cage, d["vset"], d["pivot_t"], AXIS_VEC[d["rot"]],
                                         d["angle"], d["sym"])
             self._commit(d["group"], cage, d["levels"], d["lines"])
-            self._say(f"Rotated {math.degrees(d['angle']):+.1f}\u00b0 around {d['rot'].upper()}")
+            self._say(T("Rotated {a}° around {axis}", a=f"{math.degrees(d['angle']):+.1f}",
+                        axis=d['rot'].upper()))
         elif d["started"] and any(abs(c) > 1e-9 for c in d["delta"]):
             cage = d["base"].copy()
             subdiv_ops.symmetric_move(cage, d["vset"], d["delta"], d["sym"])
@@ -1421,7 +1440,7 @@ class _DragFilter(QObject):
             if t == QEvent.KeyPress and ev.key() == Qt.Key_Escape:
                 return bool(self.panel.cancel_drag())
         except Exception:                                        # noqa: BLE001
-            log.exception("SubD drag failed")
+            log.exception(T("SubD drag failed"))
             self.panel._drag = None
         return False
 
@@ -1455,5 +1474,5 @@ def setup(app) -> None:
     panel.axis.currentIndexChanged.connect(lambda _i: app.viewport.update())
     panel._filter = _DragFilter(panel)                 # freestyle dragging
     app.viewport.installEventFilter(panel._filter)
-    app.add_menu_action("SubD panel", lambda: app.show_panel(dock), None,
-                        tip="Show the subdivision-modelling panel.")
+    app.add_menu_action(T("SubD panel"), lambda: app.show_panel(dock), None,
+                        tip=T("Show the subdivision-modelling panel."))

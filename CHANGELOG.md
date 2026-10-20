@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1
+
+- **The panel follows IngeTrazo's language**: French when IngeTrazo is in
+  French, English otherwise (`SUBD_LANG=fr|en` forces one). Tools, help texts,
+  messages and the checks before Finish.
+- **Units**: the Create help text named metres while the value box showed the
+  document's unit; it now names the unit shown (millimetres, inches…) and
+  follows a change of unit at once. The volume after Finish is given in the
+  document's unit (cubic metres in brackets).
+- Tests for both.
+
 ## 1.0
 
 First release as a standalone extension.
