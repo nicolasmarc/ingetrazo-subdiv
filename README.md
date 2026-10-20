@@ -2,6 +2,8 @@
 
 ![SubD: cage, smooth piece, solid](screenshots/subdiv.png)
 
+▶ **Video tutorial:** [SubD tool for IngeTrazo]([COLLE-ICI-LE-LIEN-YOUTUBE](https://youtube.com/shorts/uhIoH_zuSDM?si=kr7fDxFeQO5eZX5q))
+
 Model smooth, organic shapes (lamps, chairs, tables, furniture) from a coarse
 control **cage**: push, pinch, crease and divide a few faces and the
 Catmull-Clark surface follows. When you are happy, **Finish** turns it into an
