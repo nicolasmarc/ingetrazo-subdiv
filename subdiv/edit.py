@@ -18,6 +18,8 @@ Conventions
 """
 from __future__ import annotations
 
+from .lang import T as _T
+
 import math
 from typing import Iterable, Sequence
 
@@ -193,17 +195,16 @@ class Cage:
         inside-out orientation (which ``orient`` can fix)."""
         problems: list[str] = []
         if len(self.faces) < 4:
-            problems.append("fewer than 4 faces")
+            problems.append(_T("fewer than 4 faces"))
         ef = self.edge_faces()
         open_edges = sum(1 for v in ef.values() if len(v) == 1)
         bad_edges = sum(1 for v in ef.values() if len(v) > 2)
         if open_edges:
-            problems.append(f"{len(self.boundary_loops())} opening(s) left "
-                            f"({open_edges} open edges): Close or Bridge them")
+            problems.append(_T('{v0} opening(s) left ({open_edges} open edges): Close or Bridge them', v0=len(self.boundary_loops()), open_edges=open_edges))
         if bad_edges:
-            problems.append(f"{bad_edges} edge(s) shared by more than two faces")
+            problems.append(_T('{bad_edges} edge(s) shared by more than two faces', bad_edges=bad_edges))
         if not self.is_consistent():
-            problems.append("faces wind in mixed directions (they will be re-oriented)")
+            problems.append(_T("faces wind in mixed directions (they will be re-oriented)"))
         seen: dict = {}
         used = {v for f in self.faces for v in f}
         for v in used:
@@ -211,14 +212,14 @@ class Cage:
             seen.setdefault(key, []).append(v)
         twins = sum(1 for g in seen.values() if len(g) > 1)
         if twins:
-            problems.append(f"{twins} point(s) sit exactly on another point")
+            problems.append(_T('{twins} point(s) sit exactly on another point', twins=twins))
         flat = sum(1 for fi in range(len(self.faces))
                    if _length(_newell([self.verts[i] for i in self.faces[fi]])) < 1e-18)
         if flat:
-            problems.append(f"{flat} face(s) have no area")
+            problems.append(_T('{flat} face(s) have no area', flat=flat))
         vol = abs(self.signed_volume()) if not open_edges and not bad_edges else 0.0
         if not open_edges and not bad_edges and vol <= 1e-12:
-            problems.append("the cage encloses no volume")
+            problems.append(_T("the cage encloses no volume"))
         fatal = [p for p in problems if "re-oriented" not in p]
         return (not fatal), problems, vol
 
@@ -362,11 +363,11 @@ class Cage:
         The offset is measured on the cage, so the smoothed wall comes out a
         little thinner than ``thickness`` where the surface curves."""
         if mode not in ("outside", "inside", "center"):
-            raise ValueError("Shell side must be outside, inside or centred")
+            raise ValueError(_T("Shell side must be outside, inside or centred"))
         if not (thickness > 0):
-            raise ValueError("The wall thickness must be above zero")
+            raise ValueError(_T("The wall thickness must be above zero"))
         if not self.faces:
-            raise ValueError("Nothing to shell")
+            raise ValueError(_T("Nothing to shell"))
         self.orient()                    # one winding everywhere (outwards if closed)
         ef = self.edge_faces()
         lo, hi = {"outside": (0.0, thickness), "inside": (-thickness, 0.0),

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2
+
+- **The panel follows IngeTrazo's language**: French when IngeTrazo is in
+  French, English otherwise (`SUBD_LANG=fr|en` forces one). Tools, help texts,
+  messages and the checks before Finish.
+- The volume after Finish is given in the document's unit (cubic metres in
+  brackets).
+- Tests for both.
+
 ## 1.1
 
 - The help line and tooltips of the Create tool now follow the document's unit

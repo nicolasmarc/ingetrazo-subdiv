@@ -12,6 +12,8 @@ sentence meant for the status bar.
 """
 from __future__ import annotations
 
+from .lang import T as _T
+
 import math
 from typing import Callable, NamedTuple, Sequence
 
@@ -111,9 +113,9 @@ class Result(NamedTuple):
 # ---- selection helpers -----------------------------------------------------------------
 def describe(sel: Selection | None) -> str:
     if not sel:
-        return "Nothing selected"
-    return {"v": lambda: f"Point {sel[1]}", "e": lambda: f"Edge {sel[1]}-{sel[2]}",
-            "f": lambda: f"Face {sel[1]}"}[sel[0]]()
+        return _T("Nothing selected")
+    return {"v": lambda: _T("Point {i}", i=sel[1]), "e": lambda: _T("Edge {a}-{b}", a=sel[1], b=sel[2]),
+            "f": lambda: _T("Face {i}", i=sel[1])}[sel[0]]()
 
 
 def vertex_union(cage: Cage, sels) -> list[int]:
@@ -130,7 +132,7 @@ def describe_many(sels) -> str:
     sels = [s for s in sels if s]
     if len(sels) <= 1:
         return describe(sels[0] if sels else None)
-    return f"{len(sels)} items selected (Shift+click adds or removes one)"
+    return _T("{n} items selected (Shift+click adds or removes one)", n=len(sels))
 
 
 def valid(cage: Cage, sel: Selection | None) -> bool:
@@ -155,7 +157,7 @@ def vertex_set(cage: Cage, sel: Selection) -> list[int]:
 
 def _need(sel, kind: str, what: str) -> Selection:
     if not sel or sel[0] not in kind:
-        raise ValueError(f"Select {what} first")
+        raise ValueError(_T('Select {what} first', what=what))
     return sel
 
 
@@ -171,18 +173,18 @@ def _axis(cage: Cage, sel: Selection | None, axis):
 
 def _open_loop(cage: Cage, sel) -> list[int]:
     """The open border (boundary loop) the selected edge lies on."""
-    _need(sel, "e", "an open edge")
+    _need(sel, "e", _T("an open edge"))
     a, b = sel[1], sel[2]
     for loop in cage.boundary_loops():
         n = len(loop)
         if any({loop[i], loop[(i + 1) % n]} == {a, b} for i in range(n)):
             return loop
-    raise ValueError("That edge is not on an open border")
+    raise ValueError(_T("That edge is not on an open border"))
 
 
 # ---- the tools ----------------------------------------------------------------------------
 def _edit(cage, sel, value, axis, pending):
-    _need(sel, "vef", "a point, edge or face")
+    _need(sel, "vef", _T("a point, edge or face"))
     d = _axis(cage, sel, axis)
     cage.move(vertex_set(cage, sel), (d[0] * value, d[1] * value, d[2] * value))
     return Result(sel, "Moved")
@@ -191,16 +193,16 @@ def _edit(cage, sel, value, axis, pending):
 def _crease(cage, sel, value, axis, pending):
     if not sel:                                    # nothing selected: every edge
         cage.set_crease(cage.edges(), value)
-        return Result(None, "All creases cleared" if value <= 0
-                      else f"Every edge creased {value:g}")
-    _need(sel, "ef", "an edge or a face")
+        return Result(None, _T("All creases cleared") if value <= 0
+                      else _T('Every edge creased {value}', value=format(value, 'g')))
+    _need(sel, "ef", _T("an edge or a face"))
     if sel[0] == "e":
         edges = [(sel[1], sel[2])]
     else:
         f = cage.faces[sel[1]]
         edges = [(f[i], f[(i + 1) % len(f)]) for i in range(len(f))]
     cage.set_crease(edges, value)
-    return Result(sel, "Crease cleared" if value <= 0 else f"Crease {value:g}")
+    return Result(sel, _T("Crease cleared") if value <= 0 else _T('Crease {value}', value=format(value, 'g')))
 
 
 def crease_items(cage: Cage, sels, value: float) -> Result:
@@ -223,17 +225,18 @@ def crease_items(cage: Cage, sels, value: float) -> Result:
                 seen.add(ekey(a, b))
                 edges.append((a, b))
     if not edges:
-        raise ValueError("Select edges or faces first")
+        raise ValueError(_T("Select edges or faces first"))
     cage.set_crease(edges, value)
     n = len(edges)
-    return Result(None, f"{n} edge{'s' if n > 1 else ''} rounded off" if value <= 0
-                  else f"{n} edge{'s' if n > 1 else ''} creased {value:g}")
+    return Result(None, (_T('{n} edges rounded off', n=n) if n > 1 else _T('{n} edge rounded off', n=n)) if value <= 0
+                  else (_T('{n} edges creased {value}', n=n, value=format(value, 'g')) if n > 1
+                       else _T('{n} edge creased {value}', n=n, value=format(value, 'g'))))
 
 
 def _grow_face(cage, sel, value, axis, pending):
-    _need(sel, "f", "a face")
+    _need(sel, "f", _T("a face"))
     cage.extrude_face(sel[1], value)
-    return Result(sel, "Face grown")
+    return Result(sel, _T("Face grown"))
 
 
 def _outward(cage, a, b):
@@ -254,7 +257,7 @@ def _grow_loop(cage, loop, value, axis):
     the contour's own normal, pointing away from the piece."""
     if axis in ("x", "y", "z"):
         d = _axis(cage, None, axis)
-        where = f"along {axis.upper()}"
+        where = _T('along {v0}', v0=axis.upper())
     else:
         pts = [cage.verts[v] for v in loop]
         nx = ny = nz = 0.0                      # the contour's own normal (Newell)
@@ -265,8 +268,8 @@ def _grow_loop(cage, loop, value, axis):
             nz += (p[0] - q[0]) * (p[1] + q[1])
         n = math.sqrt(nx * nx + ny * ny + nz * nz)
         if n < 1e-12:
-            raise ValueError("Cannot tell which way is outward for that contour: "
-                             "choose X, Y or Z")
+            raise ValueError(_T("Cannot tell which way is outward for that contour: "
+                             "choose X, Y or Z"))
         c = tuple(sum(p[k] for p in pts) / len(pts) for k in range(3))
         mid = tuple(sum(p[k] for p in cage.verts) / len(cage.verts) for k in range(3))
         d = (nx / n, ny / n, nz / n)
@@ -274,7 +277,7 @@ def _grow_loop(cage, loop, value, axis):
             d = _mul(d, -1.0)
         where = "outwards"
     new = cage.extrude_edges(list(loop) + [loop[0]], _mul(d, value))
-    return Result(("e", new[0], new[1]), f"Open contour of {len(loop)} edges extruded {where}")
+    return Result(("e", new[0], new[1]), _T('Open contour of {v0} edges extruded {where}', v0=len(loop), where=where))
 
 
 def _grow_edge(cage, sel, value, axis, pending):
@@ -284,26 +287,26 @@ def _grow_edge(cage, sel, value, axis, pending):
     a, b = sel[1], sel[2]
     d = _outward(cage, a, b)
     if d is None:
-        raise ValueError("Cannot tell which way is outward for that edge")
+        raise ValueError(_T("Cannot tell which way is outward for that edge"))
     new = cage.extrude_edges([a, b], _mul(d, value))
-    return Result(("e", new[0], new[1]), "Edge grown")
+    return Result(("e", new[0], new[1]), _T("Edge grown"))
 
 
 def grow_items(cage, sels, value, axis="auto") -> Result:
     """Grow E with several edges selected (a contour picked with repeated clicks):
     they must be all the edges of one open contour; it is extruded as a whole."""
     if not sels or any(x[0] != "e" for x in sels):
-        raise ValueError("Grow E: select edges of an open contour")
+        raise ValueError(_T("Grow E: select edges of an open contour"))
     loop = _open_loop(cage, sels[0])
     wanted = {ekey(loop[i], loop[(i + 1) % len(loop)]) for i in range(len(loop))}
     if {ekey(x[1], x[2]) for x in sels} != wanted:
-        raise ValueError("Select the whole open contour (click an edge again for its "
-                         "contour), or a single edge")
+        raise ValueError(_T("Select the whole open contour (click an edge again for its "
+                         "contour), or a single edge"))
     return _grow_loop(cage, loop, value, axis)
 
 
 def _stretch(cage, sel, value, axis, pending):
-    _need(sel, "vef", "a point, edge or face")
+    _need(sel, "vef", _T("a point, edge or face"))
     ids = list(dict.fromkeys(vertex_set(cage, sel)))
     u = _axis(cage, sel, axis)
     n = math.sqrt(sum(c * c for c in u)) or 1.0
@@ -321,29 +324,29 @@ def _stretch(cage, sel, value, axis, pending):
         c0 = cage.verts[ids[0]]
         origin = tuple(c0[i] + u[i] * (anchor - proj[0]) for i in range(3))
         cage.stretch(list(range(len(cage.verts))), value, u, origin)
-        return Result(sel, "Whole piece stretched (the selection alone has no length along that direction)")
+        return Result(sel, _T("Whole piece stretched (the selection alone has no length along that direction)"))
     cage.stretch(ids, value, u)
     return Result(sel, "Stretched")
 
 
 def _inset_face(cage, sel, value, axis, pending):
-    _need(sel, "f", "a face")
+    _need(sel, "f", _T("a face"))
     cage.inset_face(sel[1], value)
-    return Result(sel, "Face offset")
+    return Result(sel, _T("Face offset"))
 
 
 def _offset_edge(cage, sel, value, axis, pending):
     loop = _open_loop(cage, sel)
     new = cage.offset_edges(loop + [loop[0]], value)
-    return Result(("e", new[0], new[1]), "Border offset")
+    return Result(("e", new[0], new[1]), _T("Border offset"))
 
 
 def _squeeze(cage, sel, value, axis, pending):
-    _need(sel, "fe", "a face, or an edge of an open contour")
+    _need(sel, "fe", _T("a face, or an edge of an open contour"))
     ax = _axis(cage, sel, axis) if axis != "auto" else None
     if sel[0] == "e":                                # an open edge: its whole contour
         cage.squeeze(_open_loop(cage, sel), value, ax)
-        return Result(sel, "Open contour squeezed")
+        return Result(sel, _T("Open contour squeezed"))
     cage.squeeze(vertex_set(cage, sel), value, ax)
     return Result(sel, "Squeezed")
 
@@ -353,11 +356,11 @@ def squeeze_items(cage, sels, value, axis="auto") -> Result:
     clicks, or a few faces): all their points are pinched together towards the
     axis through their centre (Auto: the ring's own normal)."""
     if not sels:
-        raise ValueError("Select a face or the edges of a contour first")
+        raise ValueError(_T("Select a face or the edges of a contour first"))
     ax = _axis(cage, None, axis) if axis != "auto" else None
     ids = vertex_union(cage, sels)
     if len(ids) < 3:
-        raise ValueError("Select at least three points to squeeze")
+        raise ValueError(_T("Select at least three points to squeeze"))
     cage.squeeze(ids, value, ax)
     return Result(sels[-1], "Squeezed")
 
@@ -365,28 +368,27 @@ def squeeze_items(cage, sels, value, axis="auto") -> Result:
 def _divide(cage, sel, value, axis, pending):
     """Divide a face (``axis`` "face": that face only; otherwise the cut runs
     on round the piece as a loop) or cut the loop through a chosen edge."""
-    _need(sel, "fe", "a face or an edge")
+    _need(sel, "fe", _T("a face or an edge"))
     if sel[0] == "e":
         cage.loop_cut(sel[1], sel[2], whole=axis != "face")
-        return Result(sel, "Loop cut" if axis != "face" else "Cut across the face")
+        return Result(sel, _T("Loop cut") if axis != "face" else _T("Cut across the face"))
     if axis == "face":
         cage.divide_face_only(sel[1])
-        return Result(sel, "Face divided")
+        return Result(sel, _T("Face divided"))
     cage.divide_face(sel[1])
-    return Result(sel, "Face divided")
+    return Result(sel, _T("Face divided"))
 
 
 def _delete_face(cage, sel, value, axis, pending):
-    _need(sel, "f", "a face")
+    _need(sel, "f", _T("a face"))
     if len(cage.faces) <= 1:
-        raise ValueError("A cage needs at least one face")
+        raise ValueError(_T("A cage needs at least one face"))
     cage.remove_faces([sel[1]])
-    return Result(None, "Face deleted — Close it again or Bridge it to another opening")
-
+    return Result(None, _T("Face deleted — Close it again or Bridge it to another opening"))
 
 def _close(cage, sel, value, axis, pending):
     loop = _open_loop(cage, sel)
-    return Result(("f", cage.close_hole(loop)), "Hole closed")
+    return Result(("f", cage.close_hole(loop)), _T("Hole closed"))
 
 
 def _bridge_end(cage, sel):
@@ -402,27 +404,25 @@ def _bridge(cage, sel, value, axis, pending):
     end = _bridge_end(cage, sel)
     if pending is None:
         what = "face" if end[0] == "face" else "opening"
-        return Result(sel, f"Now select the other {what} (a face or an edge of an "
-                      "opening) and press Apply again", pending=("bridge", end))
+        return Result(sel, _T('Now select the other {what} (a face or an edge of an opening) and press Apply again', what=what), pending=("bridge", end))
     first = pending[1]
     if first[0] == "face" and end[0] == "face" and first[1] == end[1]:
-        raise ValueError("Pick a different face")
+        raise ValueError(_T("Pick a different face"))
     if first[0] == "loop" and end[0] == "loop" and set(first[3]) == set(end[3]):
-        raise ValueError("Pick an edge of a different opening")
+        raise ValueError(_T("Pick an edge of a different opening"))
     if len(first[3]) != len(end[3]):
-        raise ValueError("Both ends need the same number of sides "
-                         f"({len(first[3])} and {len(end[3])})")
+        raise ValueError(_T('Both ends need the same number of sides ({v0} and {v1})', v0=len(first[3]), v1=len(end[3])))
     if set(first[3]) & set(end[3]):
-        raise ValueError("The two ends touch each other: pick faces that do not share a point")
+        raise ValueError(_T("The two ends touch each other: pick faces that do not share a point"))
     drop = [e[1] for e in (first, end) if e[0] == "face"]
     for e in (first, end):
         if e[0] == "face" and tuple(cage.faces[e[1]]) != e[2]:
-            raise ValueError("The cage changed since the first click: start the Bridge again")
+            raise ValueError(_T("The cage changed since the first click: start the Bridge again"))
     if len(drop) >= len(cage.faces):
-        raise ValueError("A cage needs at least one face")
+        raise ValueError(_T("A cage needs at least one face"))
     cage.remove_faces(drop)
     cage.bridge(first[3], end[3], twist=int(round(value)))
-    return Result(None, "Bridged" if drop else "Openings bridged")
+    return Result(None, _T("Bridged") if drop else _T("Openings bridged"))
 
 
 def bridge_two(cage, first, second, value=0.0) -> Result:
@@ -435,7 +435,7 @@ def bridge_two(cage, first, second, value=0.0) -> Result:
 def _shell(cage, sel, value, axis, pending):
     mode = axis if axis in ("inside", "outside", "center") else "outside"
     cage.shell(value, mode)
-    return Result(None, f"Wall added ({mode}). Smooth it, or use Finish")
+    return Result(None, _T('Wall added ({mode}). Smooth it, or use Finish', mode=_T(mode)))
 
 
 _TOOLS: dict[str, Callable] = {
@@ -455,9 +455,9 @@ def apply_tool(cage: Cage, tool: str, sel: Selection | None, value: float = 0.0,
     the selection does not fit; the cage is only touched once the selection
     has been checked."""
     if tool not in _TOOLS:
-        raise ValueError(f"Unknown tool {tool!r}")
+        raise ValueError(_T('Unknown tool {tool}', tool=repr(tool)))
     if sel and not valid(cage, sel):
-        raise ValueError("The selection no longer exists")
+        raise ValueError(_T("The selection no longer exists"))
     if sym and sym.get("on") and tool not in _NO_SYMMETRY:
         return _symmetric(cage, tool, sel, value, axis, pending, sym)
     return _TOOLS[tool](cage, sel, value, axis, pending)
@@ -538,7 +538,7 @@ def edge_loop(cage: Cage, a: int, b: int) -> list[tuple[int, int]]:
     just itself."""
     ef = cage.edge_faces()
     if ekey(a, b) not in ef:
-        raise ValueError("That is not an edge of the cage")
+        raise ValueError(_T("That is not an edge of the cage"))
     nbr: dict[int, list[int]] = {}
     for (x, y) in ef:
         nbr.setdefault(x, []).append(y)
@@ -583,7 +583,7 @@ def edge_contours(cage: Cage, a: int, b: int) -> list[tuple[str, list[tuple[int,
     ef = cage.edge_faces()
     key = ekey(a, b)
     if key not in ef:
-        raise ValueError("That is not an edge of the cage")
+        raise ValueError(_T("That is not an edge of the cage"))
     out: list[tuple[str, list[tuple[int, int]]]] = [("Edge", [(a, b)])]
     seen = [{key}]
 
@@ -595,11 +595,11 @@ def edge_contours(cage: Cage, a: int, b: int) -> list[tuple[str, list[tuple[int,
 
     loop = edge_loop(cage, a, b)
     if len(loop) > 1:
-        add("Loop", loop)
+        add(_T("Loop"), loop)
     for fi in ef[key]:
         f = cage.faces[fi]
         ring = [(f[i], f[(i + 1) % len(f)]) for i in range(len(f))]
-        add("Face outline", ring)
+        add(_T("Face outline"), ring)
     return out
 
 
