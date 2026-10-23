@@ -848,3 +848,16 @@ def test_stretch_face_auto_stretches_whole_piece():
     xs = [v[0] for v in cage.verts]
     assert abs(min(xs) - lo) < 1e-9
     assert abs(max(xs) - (lo + (hi - lo) * 1.5)) < 1e-9
+
+
+def test_create_tip_follows_the_document_unit():
+    """The help line used to say 'size in metres' while the box showed inches."""
+    from subdiv import ops
+    spec = ops.SPECS["create"]
+    assert "{unit}" in spec.tip and "metres" not in spec.tip
+    assert "size in in)" in ops.tip_for(spec, "in")
+    assert "size in mm)" in ops.tip_for(spec, "mm")
+    assert "size in m)" in ops.tip_for(spec)          # default: metres
+    # tools without a unit in their text come back unchanged
+    other = ops.SPECS["edit"]
+    assert ops.tip_for(other, "mm") == other.tip

@@ -36,7 +36,7 @@ class ToolSpec(NamedTuple):
 
 TOOL_SPECS = [
     ToolSpec("create", "subd_create", "Create",
-             "New box cage (size in metres), with its lower corner on the origin.",
+             "New box cage (size in {unit}), with its lower corner on the origin.",
              "Size", 1.0, 0.05, 1000.0, 0.1, False, True),
     ToolSpec("edit", "subd_edit", "Edit cage",
              "Move the selected point, edge or face along an axis.",
@@ -94,6 +94,12 @@ TOOL_SPECS = [
              "Thickness", 0.05, 0.001, 1000.0, 0.01, False, True),
 ]
 SPECS = {s.key: s for s in TOOL_SPECS}
+
+
+def tip_for(spec, unit: str = "m") -> str:
+    """``spec.tip`` with ``{unit}`` replaced by the document's length unit
+    (the value box follows the document: mm, cm, m, in...)."""
+    return spec.tip.replace("{unit}", unit)
 
 
 class Result(NamedTuple):

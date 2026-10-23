@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1
+
+- The help line and tooltips of the Create tool now follow the document's unit
+  (mm, cm, m, in...) instead of always saying "metres", matching the value box.
+  Reported on the IngeTrazo 0.5.8 unit settings.
+
 ## 1.0
 
 First release as a standalone extension.

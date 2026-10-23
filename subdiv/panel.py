@@ -134,7 +134,7 @@ class SubdPanel(QWidget):
             b.setIcon(_icon(spec.icon))
             b.setIconSize(QSize(34, 34))
             b.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-            b.setToolTip(f"{spec.label} — {spec.tip}")
+            b.setToolTip(f"{spec.label} — {subdiv_ops.tip_for(spec)}")
             b.setAutoRaise(True)
             b.clicked.connect(lambda _c=False, k=spec.key: self._pick_tool(k))
             self.buttons.addButton(b)
@@ -355,7 +355,7 @@ class SubdPanel(QWidget):
 
     def _sync(self) -> None:
         spec = subdiv_ops.SPECS[self.tool]
-        self.hint.setText(spec.tip)
+        self.hint.setText(subdiv_ops.tip_for(spec, self._unit_name()))
         has_value = bool(spec.value_label)
         self.value_label.setText(spec.value_label)
         self.value_label.setVisible(has_value)
@@ -411,6 +411,17 @@ class SubdPanel(QWidget):
         v = float(self.value.value())
         return v * self._scale if spec.length else v
 
+    def _unit_name(self) -> str:
+        """The document's length unit as shown in the value box (m, mm, in...)."""
+        return _SUFFIX.get(self._unit, " m").strip()
+
+    def _refresh_tips(self) -> None:
+        """Tool tips and the hint line follow the document's unit."""
+        name = self._unit_name()
+        for b, spec in zip(self.buttons.buttons(), subdiv_ops.TOOL_SPECS):
+            b.setToolTip(f"{spec.label} — {subdiv_ops.tip_for(spec, name)}")
+        self.hint.setText(subdiv_ops.tip_for(subdiv_ops.SPECS[self.tool], name))
+
     def _units_refresh(self) -> None:
         """Follow the document's unit (mm, cm, in…): the model itself is metres."""
         try:
@@ -421,6 +432,7 @@ class SubdPanel(QWidget):
             keep = self._metres() if self._unit is not None else None
             self._unit, self._scale = unit, scale
             self._configure_value(keep)
+            self._refresh_tips()
 
     def _pick_tool(self, key: str) -> None:
         if key != self.tool:
