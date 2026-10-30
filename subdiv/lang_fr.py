@@ -293,6 +293,7 @@ FR = {
         "Les deux bouts se touchent : choisir des faces sans point commun",
     "The cage changed since the first click: start the Bridge again":
         "La cage a changé depuis le premier clic : recommencer le Relier",
+    "face": "face", "opening": "ouverture",
     "Bridged": "Relié",
     "Openings bridged": "Ouvertures reliées",
     "Wall added ({mode}). Smooth it, or use Finish": "Paroi ajoutée ({mode}). La lisser, ou Terminer",

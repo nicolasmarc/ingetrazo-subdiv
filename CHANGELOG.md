@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3
+
+- **Spanish**: the panel now also speaks Spanish when IngeTrazo is in Spanish
+  (`es`, `es-MX`...). English, French and Spanish are all covered; other languages
+  stay in English (`SUBD_LANG=es|fr|en` forces one). A test checks that every text
+  exists in French and Spanish with the same placeholders.
+- The Bridge message now translates the words "face" / "opening".
+
 ## 1.2
 
 - **The panel follows IngeTrazo's language**: French when IngeTrazo is in

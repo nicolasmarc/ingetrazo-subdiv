@@ -403,7 +403,7 @@ def _bridge_end(cage, sel):
 def _bridge(cage, sel, value, axis, pending):
     end = _bridge_end(cage, sel)
     if pending is None:
-        what = "face" if end[0] == "face" else "opening"
+        what = _T("face") if end[0] == "face" else _T("opening")
         return Result(sel, _T('Now select the other {what} (a face or an edge of an opening) and press Apply again', what=what), pending=("bridge", end))
     first = pending[1]
     if first[0] == "face" and end[0] == "face" and first[1] == end[1]:

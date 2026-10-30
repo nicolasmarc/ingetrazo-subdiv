@@ -17,6 +17,9 @@ pieces, conversion of existing groups to SubD, and a detail level for the
 finished piece that keeps it light. Every step is one undo step; the cage is
 saved inside the `.igz` (`group.ext["subdiv"]`) with no format change.
 
+The panel speaks English, French and Spanish: it follows IngeTrazo's language
+(other languages stay in English).
+
 Full guide: [`docs/subdivision.md`](docs/subdivision.md).
 
 ## Install
