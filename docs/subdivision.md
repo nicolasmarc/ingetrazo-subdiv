@@ -45,6 +45,8 @@ Every step is one undo step; undo puts the previous surface back.
 
 **Selecting**: click an edge again to step through *Edge*, *Loop*, *Ring* (the parallel edges the loop cut would cross) and the outline of each face it touches.
 
+**Pick on the skin**: tick it under *Show cage* and click the smooth surface directly. The cage point, edge or face that shapes the spot is selected: a point if you click near where a cage point lies on the surface, an edge near its curve on the surface, otherwise the face. It works with the cage hidden (the selection is then drawn on the skin) and with every tool; dragging moves the cage points behind it.
+
 **Soft selection**: tick *Soft* next to the symmetry controls and give a radius (in the document's unit). Dragging a point, edge or face, or Edit cage, also drags the points around it, fading smoothly to nothing at the radius. It works with symmetry.
 
 Lengths (Create, Edit cage, Grow F, Grow E, Bevel, Slice, Merge) are typed and shown in the

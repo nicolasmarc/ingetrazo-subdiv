@@ -17,8 +17,11 @@ from .lang import T as _T
 import math
 from typing import Callable, NamedTuple, Sequence
 
+import numpy as np
+
 from .edit import Cage, ekey
 from . import modeling
+from .subdivide import _step as _subdivide_step
 
 Selection = tuple
 
@@ -718,6 +721,104 @@ def pick(cage: Cage, xs: Sequence[float], ys: Sequence[float], front: Sequence[b
             if best_d is None or d < best_d:
                 best, best_d = ("f", fi), d
     return best
+
+
+# ---- picking on the smooth skin -----------------------------------------------------------
+class Skin(NamedTuple):
+    """The smooth surface of a cage, with what is needed to point at the cage
+    through it: every skin face knows its cage face, and every cage edge knows
+    the chain of skin points that makes its curve on the skin."""
+    verts: np.ndarray                       # (N, 3) skin points; cage point i is skin point i
+    tris: np.ndarray                        # (T, 3) skin triangles
+    tri_face: np.ndarray                    # (T,) cage face of each triangle
+    curves: dict                            # cage edge (a, b) -> list of skin point indices
+
+
+def build_skin(cage: Cage, levels: int) -> Skin:
+    """Smooth ``cage`` ``levels`` times, keeping the cage-to-skin lineage."""
+    v = list(cage.verts)
+    f = [tuple(x) for x in cage.faces]
+    c = {k: s for k, s in cage.creases.items() if s > 0}
+    vc = {k: s for k, s in cage.vcreases.items() if s > 0}
+    src = list(range(len(f)))
+    curves = {e: [e[0], e[1]] for e in cage.edge_faces()}
+    for _ in range(max(0, int(levels))):
+        v, f, c, eidx, parents, vc = _subdivide_step(v, f, c, vc)
+        src = [src[p] for p in parents]
+        for e, chain in curves.items():
+            out = [chain[0]]
+            for p, q in zip(chain, chain[1:]):
+                out.append(eidx[(p, q) if p < q else (q, p)])
+                out.append(q)
+            curves[e] = out
+    tris, owner = [], []
+    for fi, face in enumerate(f):
+        for k in range(1, len(face) - 1):
+            tris.append((face[0], face[k], face[k + 1]))
+            owner.append(src[fi])
+    return Skin(np.array(v, dtype=float).reshape(-1, 3), np.array(tris, dtype=np.int64).reshape(-1, 3),
+                np.array(owner, dtype=np.int64), curves)
+
+
+def skin_hit(skin: Skin, ray, skip=()) -> int | None:
+    """The cage face behind the skin point under the mouse ray (origin,
+    direction): the nearest skin triangle the ray crosses, any side. Cage faces
+    in ``skip`` are ignored, which reaches the surface behind one already picked."""
+    if len(skin.tris) == 0:
+        return None
+    o = np.asarray(ray[0], dtype=float)
+    d = np.asarray(ray[1], dtype=float)
+    a = skin.verts[skin.tris[:, 0]]
+    e1 = skin.verts[skin.tris[:, 1]] - a
+    e2 = skin.verts[skin.tris[:, 2]] - a
+    p = np.cross(d, e2)
+    det = np.einsum("ij,ij->i", e1, p)
+    ok = np.abs(det) > 1e-14
+    inv = np.where(ok, 1.0 / np.where(ok, det, 1.0), 0.0)
+    tv = o - a
+    u = np.einsum("ij,ij->i", tv, p) * inv
+    q = np.cross(tv, e1)
+    w = (q @ d) * inv
+    t = np.einsum("ij,ij->i", e2, q) * inv
+    hit = ok & (u >= -1e-9) & (w >= -1e-9) & (u + w <= 1 + 1e-9) & (t > 0)
+    if skip:
+        hit &= ~np.isin(skin.tri_face, [x[1] for x in skip if x[0] == "f"])
+    if not hit.any():
+        return None
+    t = np.where(hit, t, np.inf)
+    return int(skin.tri_face[int(np.argmin(t))])
+
+
+def pick_skin(cage: Cage, skin: Skin, xs, ys, front, px: float, py: float, ray,
+              tol: float = 9.0, skip=()) -> Selection | None:
+    """Select a cage element by clicking on the smooth surface. ``xs, ys,
+    front`` are the screen positions of the skin points. The cage face behind
+    the click is found first; then, among that face's own points and edges as
+    they lie on the skin, a point within ``tol`` pixels wins, then an edge
+    curve, otherwise the face. ``None`` when the click misses the skin."""
+    fi = skin_hit(skin, ray, skip) if ray is not None else None
+    if fi is None:
+        return None
+    face = cage.faces[fi]
+    best, best_d = None, tol
+    for v in face:
+        if front[v]:
+            d = math.hypot(xs[v] - px, ys[v] - py)
+            if d <= best_d:
+                best, best_d = ("v", v), d
+    if best:
+        return best
+    best_d = tol * 0.7
+    for i, a in enumerate(face):
+        b = face[(i + 1) % len(face)]
+        chain = skin.curves.get(ekey(a, b))
+        if not chain:
+            continue
+        for p, q in zip(chain, chain[1:]):
+            d = _seg_dist(px, py, xs[p], ys[p], xs[q], ys[q])
+            if d <= best_d:
+                best, best_d = ("e", a, b), d
+    return best or ("f", fi)
 
 
 def edge_loop(cage: Cage, a: int, b: int) -> list[tuple[int, int]]:

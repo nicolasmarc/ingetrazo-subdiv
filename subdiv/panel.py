@@ -54,7 +54,7 @@ from core.group import Group
 from core.history import Command
 from core.mesh import Mesh
 
-from .edit import Cage
+from .edit import Cage, ekey
 
 ACCENT = QColor(243, 115, 41)
 CAGE_LINE = QColor(243, 115, 41, 200)
@@ -337,6 +337,13 @@ class SubdPanel(QWidget):
         self.show_cage.toggled.connect(lambda _on: self.app.viewport.update())
         hrow.addWidget(self.show_cage)
         lay.addLayout(hrow)
+        self.skin_pick = QCheckBox(T("Pick on the skin"))
+        self.skin_pick.setToolTip(
+            T("Click the smooth surface itself: the point, edge or face of the cage "
+              "that shapes the spot you click is selected, even with the cage hidden."))
+        self.skin_pick.toggled.connect(lambda _on: self._skin_mode_changed())
+        lay.addWidget(self.skin_pick)
+        self._skin = None                    # (key, Skin) cache for picking on the skin
 
         lay.addStretch(1)
 
@@ -583,8 +590,38 @@ class SubdPanel(QWidget):
                 return True
         return False
 
+    def _skin_mode_changed(self) -> None:
+        self._skin = None
+        self.app.viewport.update()
+
+    def _skin_of(self, g):
+        """The smooth surface of the active group, rebuilt only when the cage or
+        the smoothing level has changed."""
+        cage, levels = _state(g)[0], _state(g)[1]
+        key = (g.uid, levels, hash((tuple(cage.verts), tuple(map(tuple, cage.faces)),
+                                    tuple(sorted(cage.creases.items())),
+                                    tuple(sorted(cage.vcreases.items())))))
+        if self._skin is None or self._skin[0] != key:
+            self._skin = (key, subdiv_ops.build_skin(cage, levels))
+        return self._skin[1]
+
+    def _pick_on_skin(self, g, px: float, py: float, skip=()):
+        cage = _state(g)[0]
+        skin = self._skin_of(g)
+        try:
+            o, d = self.app.viewport._pixel_to_ray(px, py)
+        except Exception:                                        # noqa: BLE001
+            return None
+        if o is None or d is None:
+            return None
+        xs, ys, front = self.app.world_to_pixels(skin.verts)
+        return subdiv_ops.pick_skin(cage, skin, xs.tolist(), ys.tolist(), front.tolist(),
+                                    px, py, (self._xyz(o), self._xyz(d)), skip=skip)
+
     def pick_item(self, viewport, px: float, py: float, skip=()):
         g = self.active_group()
+        if g is not None and self.skin_pick.isChecked():
+            return self._pick_on_skin(g, px, py, skip)
         if g is None or not self.show_cage.isChecked():
             return None
         cage = _state(g)[0]
@@ -984,8 +1021,41 @@ class SubdPanel(QWidget):
             if front[i]:
                 painter.drawEllipse(p, 2.4, 2.4)
 
+    def _draw_skin_selection(self, painter, g) -> None:
+        """With the cage hidden: the picked items drawn on the skin itself (a
+        point where the cage point sits on the surface, an edge as its curve,
+        a face as its patch)."""
+        cage = _state(g)[0]
+        sels = [x for x in self._sels() if subdiv_ops.valid(cage, x)]
+        if not sels:
+            return
+        skin = self._skin_of(g)
+        xs, ys, front = self.app.world_to_pixels(skin.verts)
+        pt = [QPointF(float(x), float(y)) for x, y in zip(xs, ys)]
+        for sel in sels:
+            if sel[0] == "f":
+                painter.setPen(Qt.NoPen)
+                painter.setBrush(QBrush(QColor(243, 115, 41, 70)))
+                for t in np.nonzero(skin.tri_face == sel[1])[0]:
+                    tri = skin.tris[t]
+                    if all(front[int(k)] for k in tri):
+                        painter.drawPolygon(QPolygonF([pt[int(k)] for k in tri]))
+            elif sel[0] == "e":
+                chain = skin.curves.get(ekey(sel[1], sel[2]), [])
+                painter.setPen(QPen(QColor(255, 255, 255), 3.4))
+                painter.setBrush(Qt.NoBrush)
+                painter.drawPolyline(QPolygonF([pt[k] for k in chain if front[k]]))
+            else:
+                if front[sel[1]]:
+                    painter.setPen(Qt.NoPen)
+                    painter.setBrush(QBrush(QColor(255, 255, 255)))
+                    painter.drawEllipse(pt[sel[1]], 5.5, 5.5)
+
     def draw(self, viewport, painter) -> None:
         if not self.show_cage.isChecked():
+            g0 = self.active_group()
+            if g0 is not None and self.skin_pick.isChecked():
+                self._draw_skin_selection(painter, g0)
             return
         for other in self._others():
             self._draw_inactive(painter, _state(other)[0])
@@ -1230,7 +1300,7 @@ class SubdPanel(QWidget):
         shift = bool(mods & Qt.ShiftModifier)
         if getattr(getattr(vp, "active_tool", None), "name", "") != "Select":
             return False
-        if not self.show_cage.isChecked():
+        if not (self.show_cage.isChecked() or self.skin_pick.isChecked()):
             return False
         pos = ev.position()
         if self._activate_under(pos.x(), pos.y()):

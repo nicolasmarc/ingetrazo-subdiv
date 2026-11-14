@@ -10,6 +10,10 @@
   open pieces, triangles, n-gons, non-manifold edges and random creases.
 - **Soft selection**: tick *Soft* and set a radius; a drag or Edit cage also moves
   the points around, fading out smoothly. Works with symmetry.
+- **Pick on the skin**: tick *Pick on the skin* and click the smooth surface itself;
+  the cage point, edge or face behind the spot is selected (a point near a cage point,
+  an edge near its curve on the skin, otherwise the face), even with the cage hidden,
+  where the selection is drawn on the skin. Click again to reach the face behind.
 - **Click again for the Ring** of an edge (after Edge and Loop).
 - **Fractional creases** (1.5, 0.5...) and **corner creases** (Crease on a selected
   point), following DeRose, Kass and Truong (1998). Corner creases are saved with

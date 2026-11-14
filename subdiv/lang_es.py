@@ -473,4 +473,9 @@ ES = {
         "Una cara no es convexa donde el plano la corta: divídela primero",
     "Dissolving that point would leave a face with two sides":
         "Disolver ese punto dejaría una cara con dos lados",
+    # -- picking on the skin --
+    "Pick on the skin":
+        "Selección sobre la piel",
+    "Click the smooth surface itself: the point, edge or face of the cage that shapes the spot you click is selected, even with the cage hidden.":
+        "Haz clic en la propia superficie suave: se selecciona el punto, la arista o la cara de la jaula que da forma al lugar donde haces clic, incluso con la jaula oculta.",
 }

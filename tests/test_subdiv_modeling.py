@@ -390,3 +390,57 @@ def test_fractional_edge_crease_sits_between_smooth_and_sharp_in_a_cage():
         v, f = d.smooth(2)
         vols.append(Cage(v, f).signed_volume())
     assert vols[0] < vols[1] < vols[2] < vols[3]
+
+
+# ---- picking on the smooth skin -----------------------------------------------------------
+def _view_from_plus_x(cage, levels):
+    """A pretend orthographic camera looking down -X: screen = (y, z) * 100."""
+    skin = ops.build_skin(cage, levels)
+    xs, ys = (skin.verts[:, 1] * 100).tolist(), (skin.verts[:, 2] * 100).tolist()
+    front = [True] * len(xs)
+
+    def pick(y, z, tol=9.0, skip=()):
+        return ops.pick_skin(cage, skin, xs, ys, front, y * 100, z * 100,
+                             ((10.0, y, z), (-1.0, 0.0, 0.0)), tol, skip)
+    return skin, pick
+
+
+def test_skin_knows_its_cage_faces_and_edge_curves():
+    c = Cage.box((2, 2, 2))
+    skin = ops.build_skin(c, 2)
+    assert set(skin.tri_face.tolist()) == set(range(6))
+    assert all(len(ch) == 5 for ch in skin.curves.values())          # 2 levels: 4 pieces
+    assert skin.verts[0].tolist() == pytest.approx(c.smooth(2)[0][0])  # cage point i is skin point i
+
+
+def test_clicking_the_skin_picks_the_face_the_edge_or_the_point_behind_it():
+    c = Cage.box((2, 2, 2))
+    skin, pick = _view_from_plus_x(c, 2)
+    got = pick(0.0, 0.0)
+    assert got[0] == "f" and all(c.verts[v][0] > 0 for v in c.faces[got[1]])   # the +X face
+    corner = skin.verts[1]                                    # skin point of a +X corner
+    assert pick(corner[1] + 0.01, corner[2] + 0.01) == ("v", 1)
+    e = next(k for k in c.edges() if all(c.verts[v][0] > 0 for v in k))
+    mid = skin.verts[skin.curves[e][2]]
+    got = pick(mid[1], mid[2])
+    assert got[0] == "e" and ekey(got[1], got[2]) == ekey(*e)
+
+
+def test_a_click_beside_the_skin_picks_nothing_and_skip_reaches_the_far_side():
+    c = Cage.box((2, 2, 2))
+    _skin, pick = _view_from_plus_x(c, 2)
+    assert pick(3.0, 3.0) is None
+    front = pick(0.0, 0.0)
+    back = pick(0.0, 0.0, skip=[front])
+    assert back[0] == "f" and back != front
+    assert all(c.verts[v][0] < 0 for v in c.faces[back[1]])
+
+
+def test_skin_picking_works_with_creases_and_at_level_zero():
+    c = Cage.box((2, 2, 2))
+    c.set_crease(c.edges()[:3], 2.0)
+    c.set_vertex_crease([0], 1.0)
+    _s, pick = _view_from_plus_x(c, 3)
+    assert pick(0.0, 0.0) is not None
+    _s0, pick0 = _view_from_plus_x(c, 0)
+    assert pick0(0.0, 0.0)[0] == "f"

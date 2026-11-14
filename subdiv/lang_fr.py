@@ -473,4 +473,9 @@ FR = {
         "Une face n'est pas convexe là où le plan la coupe : la diviser d'abord",
     "Dissolving that point would leave a face with two sides":
         "Dissoudre ce point laisserait une face à deux côtés",
+    # -- picking on the skin --
+    "Pick on the skin":
+        "Sélection sur la peau",
+    "Click the smooth surface itself: the point, edge or face of the cage that shapes the spot you click is selected, even with the cage hidden.":
+        "Cliquer sur la surface lissée elle-même : le point, l'arête ou la face de la cage qui façonne l'endroit cliqué est sélectionné, même avec la cage cachée.",
 }
