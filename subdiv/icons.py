@@ -254,6 +254,107 @@ def _shell(p, ink):
     p.restore()
 
 
+def _revolve(p, ink):
+    """Revolve: a profile beside a dashed axis, with an arc swept round it."""
+    _seg(p, (14, 8), (14, 40), ink, 2.4, Qt.DashLine)
+    _outline(p, ((22, 14), (30, 14), (30, 34), (22, 34)), ink, 2.8)
+    _tint(p, ((22, 14), (30, 14), (30, 34), (22, 34)), 150)
+    p.save()
+    p.setPen(_pen(_acc(), 3.0))
+    p.setBrush(Qt.NoBrush)
+    path = QPainterPath()
+    path.moveTo(30, 14)
+    path.quadTo(40, 8, 40, 24)
+    p.drawPath(path)
+    p.restore()
+    _arrow(p, (40, 20), (40, 28), _acc(), 2.6, 6.0)
+
+
+def _bevel(p, ink):
+    """Bevel: a cube whose front-top edge is replaced by a flat strip."""
+    _outline(p, _LEFT, ink, 2.6)
+    _outline(p, _RIGHT, ink, 2.6)
+    _outline(p, _TOP, ink, 2.6)
+    strip = ((12, 19), (24, 26), (24, 31), (12, 24))
+    _tint(p, strip, 190)
+    _seg(p, (12, 19), (24, 26), _acc(), 3.4)
+    _seg(p, (12, 24), (24, 31), _acc(), 3.4)
+
+
+def _loft(p, ink):
+    """Loft: three section outlines joined by a smooth surface."""
+    for y, w in ((36, 11), (24, 6), (12, 9)):
+        _outline(p, ((24 - w, y), (24 + w, y)) + ((24 + w - 2, y + 4), (24 - w + 2, y + 4)), ink, 2.4)
+    body = QPainterPath()
+    body.moveTo(13, 38)
+    body.quadTo(20, 28, 18, 26)
+    body.quadTo(14, 18, 15, 14)
+    body.lineTo(33, 14)
+    body.quadTo(34, 18, 30, 26)
+    body.quadTo(28, 28, 35, 38)
+    body.closeSubpath()
+    p.save()
+    p.setPen(_pen(_acc(), 2.4))
+    p.setBrush(QBrush(_acc(80)))
+    p.drawPath(body)
+    p.restore()
+
+
+def _sweep(p, ink):
+    """Sweep: a small profile and the path it travels along."""
+    _outline(p, ((8, 30), (16, 30), (16, 38), (8, 38)), ink, 2.6)
+    path = QPainterPath()
+    path.moveTo(12, 34)
+    path.quadTo(14, 10, 30, 14)
+    path.quadTo(42, 18, 38, 10)
+    p.save()
+    p.setPen(_pen(_acc(), 3.2))
+    p.setBrush(Qt.NoBrush)
+    p.drawPath(path)
+    p.restore()
+    _outline(p, ((34, 5), (42, 5), (42, 13), (34, 13)), ink, 2.2, Qt.DashLine)
+
+
+def _slice(p, ink):
+    """Slice: a cube cut through by a plane."""
+    _cube(p, ink, 2.4)
+    cut = ((8, 26), (24, 33), (40, 26), (24, 19))
+    p.save()
+    p.setPen(_pen(_acc(), 2.6))
+    p.setBrush(QBrush(_acc(110)))
+    p.drawPolygon(_pts(cut))
+    p.restore()
+
+
+def _merge(p, ink):
+    """Merge: two points drawn together into one."""
+    _node(p, 10, 24, 3.6)
+    _node(p, 38, 24, 3.6)
+    _arrow(p, (15, 24), (21, 24), ink, 2.6, 5.0)
+    _arrow(p, (33, 24), (27, 24), ink, 2.6, 5.0)
+    p.save()
+    p.setPen(Qt.NoPen)
+    p.setBrush(QBrush(_acc()))
+    p.drawEllipse(QPointF(24, 24), 5.2, 5.2)
+    p.restore()
+
+
+def _dissolve(p, ink):
+    """Dissolve: two faces whose shared edge is dashed away."""
+    _outline(p, ((6, 14), (22, 14), (22, 34), (6, 34)), ink, 2.6)
+    _outline(p, ((22, 14), (42, 14), (42, 34), (22, 34)), ink, 2.6)
+    _seg(p, (22, 12), (22, 36), _acc(), 3.4, Qt.DashLine)
+    _tint(p, ((6, 14), (42, 14), (42, 34), (6, 34)), 60)
+
+
+def _slide(p, ink):
+    """Slide: an edge loop across a cube with a double arrow along the surface."""
+    _cube(p, ink, 2.4)
+    _seg(p, (18, 22.5), (30, 29.5), _acc(), 3.4)
+    _arrow(p, (24, 31), (33, 36), _acc(), 2.4, 5.0)
+    _arrow(p, (24, 31), (15, 26), _acc(), 2.4, 5.0)
+
+
 #: ``tool_icon`` key -> draw function(painter, ink).
 SUBD_ICONS = {
     "subd_create": _create,
@@ -270,6 +371,14 @@ SUBD_ICONS = {
     "subd_close": _close,
     "subd_bridge": _bridge,
     "subd_shell": _shell,
+    "subd_revolve": _revolve,
+    "subd_bevel": _bevel,
+    "subd_loft": _loft,
+    "subd_sweep": _sweep,
+    "subd_slice": _slice,
+    "subd_merge": _merge,
+    "subd_dissolve": _dissolve,
+    "subd_slide": _slide,
 }
 
 

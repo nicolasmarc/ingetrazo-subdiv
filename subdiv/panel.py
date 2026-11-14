@@ -172,6 +172,12 @@ class SubdPanel(QWidget):
                             "just the face (or the faces touching the edge) is cut; the "
                             "neighbours get an extra point."))
         vrow.addWidget(self.cut)
+        self.ends = QComboBox()
+        for text, data in ((T("Closed ends"), "closed"), (T("Open ends"), "open")):
+            self.ends.addItem(text, data)
+        self.ends.setToolTip(T("Loft and Sweep: close the two ends with a face, or leave "
+                             "the surface open."))
+        vrow.addWidget(self.ends)
         lay.addLayout(vrow)
 
         self.selection_label = QLabel()
@@ -198,6 +204,16 @@ class SubdPanel(QWidget):
         centre.setToolTip(T("Put the plane through the middle of the piece."))
         centre.clicked.connect(self._sym_centre)
         sym.addWidget(centre)
+        self.soft_box = QCheckBox(T("Soft"))
+        self.soft_box.setToolTip(T("Soft selection: moving a point also drags the points "
+                                 "around it, fading out at the radius."))
+        sym.addWidget(self.soft_box)
+        self.soft_radius = QDoubleSpinBox()
+        self.soft_radius.setDecimals(2)
+        self.soft_radius.setRange(0.01, 1000.0)
+        self.soft_radius.setValue(0.5)
+        self.soft_radius.setToolTip(T("Radius of the soft selection."))
+        sym.addWidget(self.soft_radius)
         face = QPushButton(T("From face"))
         face.setToolTip(T("Use the plane of the selected face."))
         face.clicked.connect(self._sym_from_face)
@@ -364,6 +380,7 @@ class SubdPanel(QWidget):
         self.axis.setVisible(spec.axis)
         self.side.setVisible(self.tool == "shell")
         self.cut.setVisible(self.tool == "divide")
+        self.ends.setVisible(self.tool in ("loft", "sweep"))
         suffix = T("  (waiting for the second opening)") if self.pending else ""
         self.selection_label.setText(subdiv_ops.describe_many(self._sels()) + suffix)
 
@@ -422,6 +439,12 @@ class SubdPanel(QWidget):
         v = float(self.value.value())
         return v * self._scale if spec.length else v
 
+    def _soft(self) -> float:
+        """The soft-selection radius in metres (0 when the box is unticked)."""
+        if not self.soft_box.isChecked():
+            return 0.0
+        return float(self.soft_radius.value()) * self._scale
+
     def _refresh_tips(self) -> None:
         """Tool tips follow the document's unit (the hint line is set by _sync)."""
         for b, spec in zip(self.buttons.buttons(), subdiv_ops.TOOL_SPECS):
@@ -435,8 +458,16 @@ class SubdPanel(QWidget):
             unit, scale = "m", 1.0
         if unit != self._unit or abs(scale - self._scale) > 1e-12:
             keep = self._metres() if self._unit is not None else None
+            soft_m = float(self.soft_radius.value()) * self._scale if self._unit is not None else 0.5
             self._unit, self._scale = unit, scale
             self._configure_value(keep)
+            self.soft_radius.blockSignals(True)          # the soft radius is a length too
+            self.soft_radius.setDecimals(self._decimals())
+            self.soft_radius.setRange(0.0001 / scale, 1000.0 / scale)
+            self.soft_radius.setSingleStep(0.05 / scale)
+            self.soft_radius.setSuffix(_SUFFIX.get(unit, " m"))
+            self.soft_radius.setValue(soft_m / scale)
+            self.soft_radius.blockSignals(False)
             if not self._building:              # the help text names the unit
                 self._refresh_tips()
                 self._sync()
@@ -605,6 +636,8 @@ class SubdPanel(QWidget):
             return self.side.currentData()
         if self.tool == "divide":
             return self.cut.currentData()
+        if self.tool in ("loft", "sweep"):
+            return self.ends.currentData()
         return self.axis.currentData()
 
     def _apply_many(self, cage: Cage):
@@ -618,20 +651,28 @@ class SubdPanel(QWidget):
         if self.tool == "squeeze":                     # a whole contour, or any selection
             return subdiv_ops.squeeze_items(cage, self._sels(), self._metres(),
                                             self.axis.currentData())
+        if self.tool == "bevel":                       # every edge of a loop
+            return subdiv_ops.bevel_items(cage, self._sels(), self._metres())
+        if self.tool == "slide":
+            return subdiv_ops.slide_items(cage, self._sels(), self._metres())
+        if self.tool == "loft":
+            return subdiv_ops.loft_items(cage, self._sels(), self._metres(), self._mode())
+        if self.tool == "sweep":
+            return subdiv_ops.sweep_items(cage, self._sels(), self._metres(), self._mode())
         if self.tool == "bridge":                      # click one end, Shift+click the other
             sels = self._sels()
             if len(sels) != 2:
                 raise ValueError(T("Bridge: select two faces (click one, Shift+click the other)"))
             return subdiv_ops.bridge_two(cage, sels[0], sels[1], self._metres())
         if self.tool != "edit":
-            raise ValueError(T("Several items are selected: use Edit cage or Crease on "
-                             "them, or click one item for this tool"))
+            raise ValueError(T("Several items are selected: use Edit cage, Crease, Bevel, "
+                             "Slide, Loft or Sweep on them, or click one item for this tool"))
         vec = AXIS_VEC.get(self.axis.currentData())
         if vec is None:
             raise ValueError(T("Choose X, Y or Z to move several items together"))
         delta = tuple(c * self._metres() for c in vec)
         subdiv_ops.symmetric_move(cage, subdiv_ops.vertex_union(cage, self._sels()),
-                                  delta, cage.sym)
+                                  delta, cage.sym, self._soft())
         return subdiv_ops.Result(None, "Moved")
 
     def apply(self) -> None:
@@ -649,7 +690,7 @@ class SubdPanel(QWidget):
             else:
                 res = subdiv_ops.apply_tool(
                     cage, self.tool, self.sel, self._metres(),
-                    self._mode(), self.pending, sym=cage.sym)
+                    self._mode(), self.pending, sym=cage.sym, soft=self._soft())
         except ValueError as exc:
             self._say(str(exc))
             return
@@ -1382,7 +1423,7 @@ class SubdPanel(QWidget):
             delta = self._xyz(p - d["p0"])
         d["delta"] = delta
         prev = d["base"].copy()
-        subdiv_ops.symmetric_move(prev, d["vset"], delta, d["sym"])
+        subdiv_ops.symmetric_move(prev, d["vset"], delta, d["sym"], self._soft())
         d["preview"] = prev
         verts, faces = prev.smooth(1 if len(prev.faces) > 150 else 2)
         edges = {(min(f[i], f[(i + 1) % len(f)]), max(f[i], f[(i + 1) % len(f)]))
@@ -1410,7 +1451,7 @@ class SubdPanel(QWidget):
                         axis=d['rot'].upper()))
         elif d["started"] and any(abs(c) > 1e-9 for c in d["delta"]):
             cage = d["base"].copy()
-            subdiv_ops.symmetric_move(cage, d["vset"], d["delta"], d["sym"])
+            subdiv_ops.symmetric_move(cage, d["vset"], d["delta"], d["sym"], self._soft())
             self._commit(d["group"], cage, d["levels"], d["lines"])
             if d["hit"] is not None:
                 vp.set_extension_pick(d["hit"])       # keep it selected

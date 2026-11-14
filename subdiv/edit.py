@@ -103,11 +103,14 @@ class Cage:
 
     def __init__(self, verts: Iterable[Vec] = (), faces: Iterable[Face] = (),
                  creases: dict | None = None, colors: Iterable | None = None,
-                 sym: dict | None = None) -> None:
+                 sym: dict | None = None, vcreases: dict | None = None) -> None:
         self.verts: list[Vec] = [(float(v[0]), float(v[1]), float(v[2])) for v in verts]
         self.faces: list[Face] = [tuple(f) for f in faces]
         self.creases: dict[tuple[int, int], float] = {
             ekey(*e): float(s) for e, s in (creases or {}).items() if s > 0}
+        # Corner (point) creases: point index -> sharpness, in subdivision levels.
+        self.vcreases: dict[int, float] = {
+            int(v): float(s) for v, s in (vcreases or {}).items() if s > 0}
         # One optional (r, g, b) per face, parallel to ``faces``.
         cols = [None if c is None else tuple(c) for c in (colors or [])]
         self.colors: list = (cols + [None] * len(self.faces))[:len(self.faces)]
@@ -130,7 +133,7 @@ class Cage:
         return cls(verts, faces)
 
     def copy(self) -> "Cage":
-        return Cage(self.verts, self.faces, self.creases, self.colors, self.sym)
+        return Cage(self.verts, self.faces, self.creases, self.colors, self.sym, self.vcreases)
 
     # ---- (de)serialisation: JSON-safe, for storing the cage in a document ----------
     def to_dict(self) -> dict:
@@ -140,6 +143,7 @@ class Cage:
             "faces": [list(f) for f in self.faces],
             "creases": [[a, b, s] for (a, b), s in sorted(self.creases.items())],
             "colors": [None if c is None else list(c) for c in self.colors],
+            "vcreases": [[v, s] for v, s in sorted(self.vcreases.items())],
             "sym": None if self.sym is None else {
                 "on": self.sym["on"], "point": list(self.sym["point"]),
                 "normal": list(self.sym["normal"])},
@@ -153,6 +157,7 @@ class Cage:
             {(a, b): s for a, b, s in data.get("creases", [])},
             data.get("colors"),
             data.get("sym"),
+            {int(v): s for v, s in data.get("vcreases", [])},
         )
 
     # ---- queries ------------------------------------------------------------------
@@ -268,7 +273,7 @@ class Cage:
     # ---- evaluation ---------------------------------------------------------------
     def smooth(self, levels: int = 2) -> tuple[list[Vec], list[Face]]:
         """The smoothed surface at ``levels`` Catmull-Clark steps (creases kept)."""
-        return subdivide(self.verts, self.faces, levels, self.creases)
+        return subdivide(self.verts, self.faces, levels, self.creases, self.vcreases)
 
     def flip(self) -> None:
         """Reverse every face (what was the back becomes the front)."""
@@ -415,6 +420,7 @@ class Cage:
         self.faces = new_faces
         self.colors = new_colors
         self.creases = creases
+        self.vcreases = {**self.vcreases, **{v + n: s for v, s in self.vcreases.items()}}
 
     def _vertex_normals(self) -> list[Vec]:
         """Where each point goes for a wall of thickness 1: the offset ``d``
@@ -484,7 +490,8 @@ class Cage:
                     [tuple(remap[v] for v in self.faces[fi]) for fi in keep],
                     {(remap[a], remap[b]): sh for (a, b), sh in self.creases.items()
                      if a in remap and b in remap},
-                    [self.colors[fi] for fi in keep], self.sym)
+                    [self.colors[fi] for fi in keep], self.sym,
+                    {remap[v]: sh for v, sh in self.vcreases.items() if v in remap})
 
     def merge(self, other: "Cage") -> tuple[int, int]:
         """Append another cage's points, faces, colours and creases to this
@@ -496,12 +503,15 @@ class Cage:
         self.colors.extend(other.colors)
         for (a, b), sharp in other.creases.items():
             self.creases[ekey(a + v0, b + v0)] = sharp
+        for v, sharp in other.vcreases.items():
+            self.vcreases[v + v0] = sharp
         return v0, f0
 
     def smooth_detailed(self, levels: int = 2, line_level: int = 0) -> Detailed:
         """Smoothed surface plus the cage face behind each output face and the
         edges to draw as lines (see :func:`subdiv.subdivide.subdivide_detailed`)."""
-        return subdivide_detailed(self.verts, self.faces, levels, self.creases, line_level)
+        return subdivide_detailed(self.verts, self.faces, levels, self.creases, line_level,
+                                  self.vcreases)
 
     def set_color(self, face_indices: Iterable[int], rgb) -> None:
         """Paint cage faces; ``rgb`` is (r, g, b) in 0..1, or None to clear."""
@@ -526,6 +536,16 @@ class Cage:
                 self.creases[ekey(a, b)] = float(sharpness)
             else:
                 self.creases.pop(ekey(a, b), None)
+
+    def set_vertex_crease(self, vids: Iterable[int], sharpness: float = 1.0) -> None:
+        """Make points corners for ``sharpness`` subdivision levels (0 clears them)."""
+        for v in vids:
+            if not 0 <= v < len(self.verts):
+                raise ValueError(f"{v} is not a point of the cage")
+            if sharpness > 0:
+                self.vcreases[v] = float(sharpness)
+            else:
+                self.vcreases.pop(v, None)
 
     # ---- moving points ------------------------------------------------------------
     def move(self, vids: Iterable[int], delta: Vec) -> None:
@@ -882,3 +902,4 @@ class Cage:
         self.faces = [tuple(remap[v] for v in f) for f in self.faces]
         self.creases = {ekey(remap[a], remap[b]): s for (a, b), s in self.creases.items()
                         if a in remap and b in remap}
+        self.vcreases = {remap[v]: s for v, s in self.vcreases.items() if v in remap}

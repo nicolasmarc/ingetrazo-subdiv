@@ -8,11 +8,12 @@ from subdiv import subdivide as sd
 from subdiv.edit import Cage
 
 
-def _ref(verts, faces, levels, creases):
+def _ref(verts, faces, levels, creases, vcreases=None):
     v, f = list(verts), [tuple(x) for x in faces]
     c = {sd._edge_key(*e): s for e, s in (creases or {}).items() if s > 0}
+    vc = {k: s for k, s in (vcreases or {}).items() if s > 0}
     for _ in range(levels):
-        v, f, c = sd._step_py(v, f, c)[:3]
+        v, f, c, _e, _p, vc = sd._step_py(v, f, c, vc)
     return v, f
 
 
@@ -77,3 +78,35 @@ def test_detailed_matches_step_by_step():
 
 def test_empty_cage():
     assert sd.subdivide([], [], 2) == ([], [])
+
+
+@pytest.mark.parametrize("name", ["box", "open", "mixed", "tri"])
+def test_fractional_and_vertex_creases_match_reference(name):
+    c = _cages()[name]
+    rnd = random.Random(11)
+    edges = c.edges()
+    for trial in range(8):
+        cr = {e: rnd.choice([0.0, 0.25, 0.5, 1.0, 1.5, 2.5, 4.0]) for e in rnd.sample(edges, min(len(edges), 7))}
+        vc = {v: rnd.choice([0.0, 0.3, 1.0, 2.0, 3.5]) for v in rnd.sample(range(len(c.verts)), min(3, len(c.verts)))}
+        for lv in (1, 2, 3):
+            _same(sd.subdivide(c.verts, c.faces, lv, cr, vc), _ref(c.verts, c.faces, lv, cr, vc))
+
+
+def test_fractional_crease_is_between_smooth_and_sharp():
+    box = Cage.box((2, 2, 2))
+    e = box.edges()[0]
+    pts = []
+    for s in (0.0, 0.5, 1.0):
+        v, _f = sd.subdivide(box.verts, box.faces, 1, {e: s} if s else None)
+        pts.append(v[len(box.verts) + len(box.faces) + 0])
+    for k in range(3):
+        lo, hi = sorted((pts[0][k], pts[2][k]))
+        assert lo - 1e-12 <= pts[1][k] <= hi + 1e-12
+
+
+def test_vertex_crease_pins_the_corner():
+    box = Cage.box((2, 2, 2))
+    v1, _ = sd.subdivide(box.verts, box.faces, 3, None, {0: 3.0})
+    assert v1[0] == pytest.approx(box.verts[0], abs=1e-12)
+    v2, _ = sd.subdivide(box.verts, box.faces, 3)
+    assert v2[0] != pytest.approx(box.verts[0], abs=1e-6)

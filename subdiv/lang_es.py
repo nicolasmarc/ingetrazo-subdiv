@@ -12,14 +12,8 @@ ES = {
         "Mueve el punto, la arista o la cara seleccionada a lo largo de un eje.",
     "Move by": "Mover",
     "Crease": "Pliegue",
-    "Keep the selected edge (or the edges of a face) sharp for N levels; 0 clears. With nothing "
-    "selected it applies to every edge; with several selected (Shift+click, or click an edge "
-    "again for its contour) to all their edges. The value starts at the smoothing level, which "
-    "keeps the edge crisp; a smaller one leaves a small radius.":
-        "Mantiene viva la arista seleccionada (o las aristas de una cara) durante N niveles; 0 la "
-        "borra. Sin selección se aplica a todas las aristas; con varias seleccionadas (Mayús+clic, "
-        "o un nuevo clic en una arista para su contorno), a todas ellas. El valor parte del nivel "
-        "de suavizado, que mantiene la arista nítida; uno menor deja un radio pequeño.",
+    "Keep the selected edge (or the edges of a face) sharp for N levels; 0 clears. A fraction (1.5, 0.5...) gives a softer edge, and a selected point becomes a corner. With nothing selected it applies to every edge; with several selected (Shift+click, or click an edge again for its contour) to all their edges. The value starts at the smoothing level, which keeps the edge crisp; a smaller one leaves a small radius.":
+        "Mantiene viva la arista seleccionada (o las aristas de una cara) durante N niveles; 0 la borra. Una fracción (1,5; 0,5...) da una arista más suave, y un punto seleccionado se convierte en esquina. Sin selección se aplica a todas las aristas; con varias seleccionadas (Mayús+clic, o un nuevo clic en una arista para su contorno), a todas ellas. El valor parte del nivel de suavizado, que mantiene la arista nítida; uno menor deja un radio pequeño.",
     "Sharpness": "Nitidez",
     "Grow F": "Empujar C",
     "Push the selected face out along its normal.": "Empuja la cara seleccionada a lo largo de su normal.",
@@ -182,9 +176,8 @@ ES = {
     # -- messages ------------------------------------------------------------------
     "  (waiting for the second opening)": "  (esperando la segunda abertura)",
     "Could not apply: {err}": "No se pudo aplicar: {err}",
-    "Several items are selected: use Edit cage or Crease on them, or click one item for this tool":
-        "Hay varios elementos seleccionados: usa Modificar o Pliegue con ellos, o haz clic en un "
-        "solo elemento para esta herramienta",
+    "Several items are selected: use Edit cage, Crease, Bevel, Slide, Loft or Sweep on them, or click one item for this tool":
+        "Hay varios elementos seleccionados: usa Modificar, Pliegue, Chaflán, Deslizar, Loft o Barrido con ellos, o haz clic en un solo elemento para esta herramienta",
     "Choose X, Y or Z to move several items together": "Elige X, Y o Z para mover varios elementos a la vez",
     "Sharp-edged SubD box created — click a point, edge or face of the cage":
         "Caja SubD de aristas vivas creada — haz clic en un punto, una arista o una cara de la jaula",
@@ -317,4 +310,167 @@ ES = {
     "That group has {v0} faces: a cage should be coarse (under {max_faces}). Simplify it first.":
         "Ese grupo tiene {v0} caras: una jaula debe ser poco densa (menos de {max_faces}). "
         "Simplifícala primero.",
+    # -- Revolve, Bevel, Loft, Sweep, Slice, Merge, Dissolve, Slide, soft selection --
+    "Segments":
+        "Segmentos",
+    "Revolve":
+        "Revolución",
+    "Turn the selected face (the profile, drawn away from the axis) round the X, Y or Z axis through the origin into a body of revolution. Points on the axis become poles.":
+        "Hace girar la cara seleccionada (el perfil, dibujado lejos del eje) alrededor del eje X, Y o Z que pasa por el origen para formar un cuerpo de revolución. Los puntos sobre el eje se convierten en polos.",
+    "Bevel":
+        "Chaflán",
+    "Replace the selected edge by a narrow flat strip, to give a corner a support or a chamfer. Click an edge again for its loop to bevel the whole loop.":
+        "Sustituye la arista seleccionada por una banda plana estrecha, para dar un apoyo a una esquina o un chaflán. Hacer clic otra vez en una arista elige su bucle y achaflana todo el bucle.",
+    "Width":
+        "Ancho",
+    "Loft":
+        "Loft",
+    "Pass a surface through several faces used as sections, in the order you clicked them (click one, Shift+click the others). The sections stay where they are. Choose whether the ends are closed.":
+        "Hace pasar una superficie por varias caras usadas como secciones, en el orden de los clics (clic en la primera, Mayús+clic en las demás). Las secciones se quedan donde están. Elige si los extremos se cierran.",
+    "Sweep":
+        "Barrido",
+    "Carry a face (the profile) along a path: select the face, then Shift+click the edges of the path, which must be one chain. The profile turns to follow the path.":
+        "Lleva una cara (el perfil) a lo largo de un camino: selecciona la cara y luego Mayús+clic en las aristas del camino, que deben formar una sola cadena. El perfil gira para seguir el camino.",
+    "Twist (deg)":
+        "Torsión (°)",
+    "Slice":
+        "Cortar",
+    "Cut the cage with a plane perpendicular to X, Y or Z through the selected item (or the middle of the piece), moved by the value.":
+        "Corta la jaula con un plano perpendicular a X, Y o Z que pasa por el elemento seleccionado (o el centro de la pieza), desplazado por el valor.",
+    "Offset":
+        "Desplazamiento",
+    "Merge":
+        "Fusionar",
+    "Select an edge or a face to merge its points at the middle, or a point to merge every point within the distance into it.":
+        "Selecciona una arista o una cara para fusionar sus puntos en el medio, o un punto para fusionar con él todos los puntos que estén a menos de la distancia.",
+    "Dissolve":
+        "Disolver",
+    "Remove the selected edge (its two faces become one) or point, keeping the surface closed.":
+        "Elimina la arista seleccionada (sus dos caras pasan a ser una) o el punto, manteniendo la superficie cerrada.",
+    "Slide":
+        "Deslizar",
+    "Slide the loop through the selected edge sideways, by a fraction of the way to its neighbour (negative goes the other way). Click an edge again for its loop.":
+        "Desliza lateralmente el bucle que pasa por la arista seleccionada, una fracción del camino hacia su vecina (negativo: en el otro sentido). Haz clic otra vez en una arista para elegir su bucle.",
+    "Slide (-0.9..0.9)":
+        "Deslizamiento (-0,9..0,9)",
+    "Loft and Sweep: close the two ends with a face, or leave the surface open.":
+        "Loft y Barrido: cerrar los dos extremos con una cara, o dejar la superficie abierta.",
+    "Soft":
+        "Suave",
+    "Soft selection: moving a point also drags the points around it, fading out at the radius.":
+        "Selección suave: mover un punto arrastra también los puntos a su alrededor, cada vez menos hasta el radio.",
+    "Radius of the soft selection.":
+        "Radio de la selección suave.",
+    "Closed ends":
+        "Extremos cerrados",
+    "Open ends":
+        "Extremos abiertos",
+    "a point, an edge or a face":
+        "un punto, una arista o una cara",
+    "a face (the profile)":
+        "una cara (el perfil)",
+    "Revolved: {n} faces added":
+        "Revolución: {n} caras añadidas",
+    "an edge":
+        "una arista",
+    "Bevelled: {n} faces added":
+        "Chaflán: {n} caras añadidas",
+    "Lofted through {k} sections: {n} faces added":
+        "Loft por {k} secciones: {n} caras añadidas",
+    "Swept along {k} points: {n} faces added":
+        "Barrido a lo largo de {k} puntos: {n} caras añadidas",
+    "Loft: select two or more faces (click one, Shift+click the others)":
+        "Loft: selecciona dos o más caras (clic en una, Mayús+clic en las demás)",
+    "Sweep: select one face (the profile), then Shift+click the edges of the path":
+        "Barrido: selecciona una cara (el perfil) y luego Mayús+clic en las aristas del camino",
+    "Sliced: {n} edges in the cut":
+        "Cortado: {n} aristas en el corte",
+    "{n} points merged":
+        "{n} puntos fusionados",
+    "an edge or a point":
+        "una arista o un punto",
+    "Point dissolved":
+        "Punto disuelto",
+    "Loop slid: {n} points":
+        "Bucle deslizado: {n} puntos",
+    "Select edges to bevel":
+        "Selecciona las aristas a achaflanar",
+    "Choose X, Y or Z: the plane is perpendicular to that axis":
+        "Elige X, Y o Z: el plano es perpendicular a ese eje",
+    "The plane does not cut the cage":
+        "El plano no corta la jaula",
+    "Edge merged at its middle":
+        "Arista fusionada en su centro",
+    "Face merged into one point":
+        "Cara fusionada en un punto",
+    "Edge dissolved":
+        "Arista disuelta",
+    "Select the edges of a loop to slide":
+        "Selecciona las aristas de un bucle para deslizar",
+    "Ring":
+        "Anillo",
+    "Corner cleared":
+        "Esquina borrada",
+    "Corner {value}":
+        "Esquina {value}",
+    "{n} corners rounded off":
+        "{n} esquinas redondeadas",
+    "{n} corners creased {value}":
+        "{n} esquinas marcadas {value}",
+    "An edge section must be a closed loop":
+        "Una sección de aristas debe ser un bucle cerrado",
+    "Choose X, Y or Z: the axis the profile turns around":
+        "Elige X, Y o Z: el eje alrededor del cual gira el perfil",
+    "A revolution needs at least 3 segments":
+        "Una revolución necesita al menos 3 segmentos",
+    "The angle must be between 0 and 360 degrees":
+        "El ángulo debe estar entre 0 y 360 grados",
+    "The profile lies on the axis: move it away first":
+        "El perfil está sobre el eje: aléjalo primero",
+    "The bevel width must be above zero":
+        "El ancho del chaflán debe ser mayor que cero",
+    "Select an edge to bevel":
+        "Selecciona una arista para achaflanar",
+    "The distance must be above zero":
+        "La distancia debe ser mayor que cero",
+    "No other point lies within that distance":
+        "Ningún otro punto está a esa distancia",
+    "Dissolve needs an edge between two faces":
+        "Disolver necesita una arista entre dos caras",
+    "Dissolving that edge would pinch the face":
+        "Disolver esa arista pellizcaría la cara",
+    "That point belongs to no face":
+        "Ese punto no pertenece a ninguna cara",
+    "Slide by a fraction between -1 and 1":
+        "Desliza una fracción entre -1 y 1",
+    "Loft needs at least two sections":
+        "El loft necesita al menos dos secciones",
+    "Segments between sections must be at least 1":
+        "Debe haber al menos 1 segmento entre secciones",
+    "A section needs at least 3 points":
+        "Una sección necesita al menos 3 puntos",
+    "The path must be one chain of edges, without branches":
+        "El camino debe ser una sola cadena de aristas, sin ramas",
+    "The path needs at least two points":
+        "El camino necesita al menos dos puntos",
+    "The profile needs at least 3 points":
+        "El perfil necesita al menos 3 puntos",
+    "The path has two points in the same place":
+        "El camino tiene dos puntos en el mismo sitio",
+    "Bevel needs an edge inside the surface, not on a border":
+        "El chaflán necesita una arista dentro de la superficie, no en un borde",
+    "Bevel needs the edge's end points to be inside the surface":
+        "El chaflán necesita que los extremos de la arista estén dentro de la superficie",
+    "The bevel is too wide for this edge: use a smaller width":
+        "El chaflán es demasiado ancho para esta arista: usa un ancho menor",
+    "Dissolve a point inside the surface (not on a border)":
+        "Disuelve un punto dentro de la superficie (no en un borde)",
+    "Dissolving that point would pinch the face":
+        "Disolver ese punto pellizcaría la cara",
+    "Slide needs a loop inside the surface, not on a border":
+        "Deslizar necesita un bucle dentro de la superficie, no en un borde",
+    "A face is not convex where the plane cuts it: divide it first":
+        "Una cara no es convexa donde el plano la corta: divídela primero",
+    "Dissolving that point would leave a face with two sides":
+        "Disolver ese punto dejaría una cara con dos lados",
 }
