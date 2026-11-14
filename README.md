@@ -10,7 +10,7 @@ Catmull-Clark surface follows. When you are happy, **Finish** turns it into an
 ordinary group (a Solid Group if the cage is closed), so Push/Pull, Solid
 Tools and the exports keep working.
 
-An IngeTrazo extension: a `SubD` tab in the side tray with fourteen tools
+An IngeTrazo extension: a `SubD` tab in the side tray with twenty-two tools
 (Create, Edit cage, Crease, Grow F, Grow E, Stretch, Offset F, Offset E,
 Squeeze, Divide, Delete F, Close, Bridge, Shell), symmetry, join/bridge of two
 pieces, conversion of existing groups to SubD, and a detail level for the

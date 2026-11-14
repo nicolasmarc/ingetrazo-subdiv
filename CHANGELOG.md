@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.4 (trial)
+
+- **Eight new tools**: Revolve, Bevel, Loft, Sweep, Slice, Merge, Dissolve and Slide
+  (22 tools in all), each with its icon and English, French and Spanish texts.
+  Lengths follow the document's unit.
+- **Faster smoothing**: the Catmull-Clark step now runs on NumPy. Tests prove the
+  result equal to the previous plain-Python version (kept as the reference) on boxes,
+  open pieces, triangles, n-gons, non-manifold edges and random creases.
+- **Soft selection**: tick *Soft* and set a radius; a drag or Edit cage also moves
+  the points around, fading out smoothly. Works with symmetry.
+- **Click again for the Ring** of an edge (after Edge and Loop).
+- **Fractional creases** (1.5, 0.5...) and **corner creases** (Crease on a selected
+  point), following DeRose, Kass and Truong (1998). Corner creases are saved with
+  the cage; older documents load unchanged.
+
 ## 1.3
 
 - **Spanish**: the panel now also speaks Spanish when IngeTrazo is in Spanish

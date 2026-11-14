@@ -4,10 +4,10 @@
 
 An extension: IngeTrazo calls :func:`setup` when the main window is built.
 The interface (``panel.py``) is imported only then, so the geometry modules
-(``subdivide``, ``edit``, ``follow``, ``group``, ``ops``) stay pure Python and
+(``subdivide``, ``edit``, ``modeling``, ``follow``, ``group``, ``ops``) stay pure Python and
 can be tested without Qt or IngeTrazo.
 """
-__version__ = "1.3"
+__version__ = "1.4"
 
 
 def setup(app) -> None:
