@@ -131,20 +131,22 @@ class SubdPanel(QWidget):
         for n, spec in enumerate(subdiv_ops.TOOL_SPECS):
             b = QToolButton()
             b.setCheckable(True)
-            b.setText(T(spec.label))
             b.setIcon(_icon(spec.icon))
-            b.setIconSize(QSize(34, 34))
-            b.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+            b.setIconSize(QSize(26, 26))
+            b.setFixedSize(34, 34)
+            b.setToolButtonStyle(Qt.ToolButtonIconOnly)
             b.setToolTip(f"{T(spec.label)} — {self._tip(spec)}")
             b.setAutoRaise(True)
             b.clicked.connect(lambda _c=False, k=spec.key: self._pick_tool(k))
             self.buttons.addButton(b)
-            grid.addWidget(b, n // 4, n % 4)
+            grid.addWidget(b, n // 8, n % 8)
             setattr(self, f"_btn_{spec.key}", b)
+        grid.setSpacing(2)
         lay.addLayout(grid)
 
         self.hint = QLabel()
         self.hint.setWordWrap(True)
+        self.hint.setTextFormat(Qt.RichText)
         lay.addWidget(self.hint)
 
         vrow = QHBoxLayout()
@@ -189,6 +191,20 @@ class SubdPanel(QWidget):
         self.status.setWordWrap(True)              # always in view (no scrolling)
         lay.addWidget(self.status)
 
+        prow = QHBoxLayout()
+        self.skin_pick = QCheckBox(T("Pick on the skin"))
+        self.skin_pick.setChecked(True)
+        self.skin_pick.setToolTip(
+            T("Click the smooth surface itself: the point, edge or face of the cage "
+              "that shapes the spot you click is selected, even with the cage hidden."))
+        self.skin_pick.toggled.connect(lambda _on: self._skin_mode_changed())
+        prow.addWidget(self.skin_pick)
+        self.show_cage = QCheckBox(T("Show cage"))
+        self.show_cage.setChecked(True)
+        self.show_cage.toggled.connect(lambda _on: self.app.viewport.update())
+        prow.addWidget(self.show_cage)
+        lay.addLayout(prow)
+
         sym = QHBoxLayout()
         self.sym_box = QCheckBox(T("Symmetry"))
         self.sym_box.setToolTip(T("Repeat every edit on the other side of the plane."))
@@ -220,6 +236,8 @@ class SubdPanel(QWidget):
         sym.addWidget(face)
         lay.addLayout(sym)
 
+        main = lay
+        lay = self._section(main, T("Join, split, convert"))
         join = QHBoxLayout()
         join.addWidget(QLabel(T("Join with")))
         self.join_with = QComboBox()
@@ -266,6 +284,7 @@ class SubdPanel(QWidget):
             "Stretch, Grow and Shell then work on a rectilinear piece."))
         lay.addWidget(self.sharp_create)
 
+        lay = self._section(main, T("Smoothing, finish, handles"))
         look = QHBoxLayout()
         look.addWidget(QLabel(T("Smoothing")))
         self.levels = QSpinBox()
@@ -332,20 +351,10 @@ class SubdPanel(QWidget):
             "Both are shown by default; pick one to keep the view clear."))
         self.handles.currentIndexChanged.connect(lambda _i: self.app.viewport.update())
         hrow.addWidget(self.handles, 1)
-        self.show_cage = QCheckBox(T("Show cage"))
-        self.show_cage.setChecked(True)
-        self.show_cage.toggled.connect(lambda _on: self.app.viewport.update())
-        hrow.addWidget(self.show_cage)
         lay.addLayout(hrow)
-        self.skin_pick = QCheckBox(T("Pick on the skin"))
-        self.skin_pick.setToolTip(
-            T("Click the smooth surface itself: the point, edge or face of the cage "
-              "that shapes the spot you click is selected, even with the cage hidden."))
-        self.skin_pick.toggled.connect(lambda _on: self._skin_mode_changed())
-        lay.addWidget(self.skin_pick)
         self._skin = None                    # (key, Skin) cache for picking on the skin
 
-        lay.addStretch(1)
+        main.addStretch(1)
 
         self._building = False
         self.levels.setEnabled(not self.auto.isChecked())
@@ -379,7 +388,7 @@ class SubdPanel(QWidget):
 
     def _sync(self) -> None:
         spec = subdiv_ops.SPECS[self.tool]
-        self.hint.setText(self._tip(spec))
+        self.hint.setText(f"<b>{T(spec.label)}</b> — {self._tip(spec)}")
         has_value = bool(spec.value_label)
         self.value_label.setText(T(spec.value_label) if spec.value_label else "")
         self.value_label.setVisible(has_value)
@@ -590,6 +599,28 @@ class SubdPanel(QWidget):
                 return True
         return False
 
+    def _section(self, parent, title: str):
+        """A collapsible block (closed at first): returns its inner layout."""
+        head = QToolButton()
+        head.setText(title)
+        head.setCheckable(True)
+        head.setChecked(False)
+        head.setAutoRaise(True)
+        head.setArrowType(Qt.RightArrow)
+        head.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        body = QWidget()
+        body.setVisible(False)
+        inner = QVBoxLayout(body)
+        inner.setContentsMargins(0, 0, 0, 0)
+
+        def toggle(on, h=head, b=body):
+            h.setArrowType(Qt.DownArrow if on else Qt.RightArrow)
+            b.setVisible(on)
+        head.toggled.connect(toggle)
+        parent.addWidget(head)
+        parent.addWidget(body)
+        return inner
+
     def _skin_mode_changed(self) -> None:
         self._skin = None
         self.app.viewport.update()
@@ -620,10 +651,19 @@ class SubdPanel(QWidget):
 
     def pick_item(self, viewport, px: float, py: float, skip=()):
         g = self.active_group()
-        if g is not None and self.skin_pick.isChecked():
-            return self._pick_on_skin(g, px, py, skip)
-        if g is None or not self.show_cage.isChecked():
+        if g is None:
             return None
+        if self.show_cage.isChecked():
+            hit = self._pick_on_cage(g, px, py, skip)
+            if hit is not None and (hit[0] != "f" or not self.skin_pick.isChecked()):
+                return hit                     # a cage point or edge you aimed at
+            if not self.skin_pick.isChecked():
+                return hit
+        if self.skin_pick.isChecked():
+            return self._pick_on_skin(g, px, py, skip)
+        return None
+
+    def _pick_on_cage(self, g, px: float, py: float, skip=()):
         cage = _state(g)[0]
         xs, ys, front = self.app.world_to_pixels(np.array(cage.verts, dtype=float))
         ray = None
@@ -1584,7 +1624,10 @@ def setup(app) -> None:
     scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     scroll.setWidget(panel)
     panel._scroll = scroll
-    dock = app.add_panel("SubD", scroll)
+    try:                                   # the tab's icon (older hosts: no icon= argument)
+        dock = app.add_panel("SubD", scroll, icon=_icon("subd_create"))
+    except TypeError:
+        dock = app.add_panel("SubD", scroll)
     app.on_document_changed(panel.refresh)
     app.add_overlay(panel.draw)
     app.add_pickable(panel.pick_item, on_select=panel.on_select)

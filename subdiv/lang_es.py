@@ -478,4 +478,8 @@ ES = {
         "Selección sobre la piel",
     "Click the smooth surface itself: the point, edge or face of the cage that shapes the spot you click is selected, even with the cage hidden.":
         "Haz clic en la propia superficie suave: se selecciona el punto, la arista o la cara de la jaula que da forma al lugar donde haces clic, incluso con la jaula oculta.",
+    "Join, split, convert":
+        "Unir, separar, convertir",
+    "Smoothing, finish, handles":
+        "Suavizado, acabado, tiradores",
 }

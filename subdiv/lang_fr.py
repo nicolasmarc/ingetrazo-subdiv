@@ -478,4 +478,8 @@ FR = {
         "Sélection sur la peau",
     "Click the smooth surface itself: the point, edge or face of the cage that shapes the spot you click is selected, even with the cage hidden.":
         "Cliquer sur la surface lissée elle-même : le point, l'arête ou la face de la cage qui façonne l'endroit cliqué est sélectionné, même avec la cage cachée.",
+    "Join, split, convert":
+        "Joindre, séparer, convertir",
+    "Smoothing, finish, handles":
+        "Lissage, finition, poignées",
 }

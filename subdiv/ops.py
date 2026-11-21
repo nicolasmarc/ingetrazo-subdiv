@@ -800,24 +800,32 @@ def pick_skin(cage: Cage, skin: Skin, xs, ys, front, px: float, py: float, ray,
     if fi is None:
         return None
     face = cage.faces[fi]
-    best, best_d = None, tol
-    for v in face:
-        if front[v]:
-            d = math.hypot(xs[v] - px, ys[v] - py)
-            if d <= best_d:
-                best, best_d = ("v", v), d
-    if best:
-        return best
-    best_d = tol * 0.7
+    near = {fi}                                    # this face and the ones across its edges
+    ef = cage.edge_faces()
     for i, a in enumerate(face):
         b = face[(i + 1) % len(face)]
-        chain = skin.curves.get(ekey(a, b))
-        if not chain:
-            continue
-        for p, q in zip(chain, chain[1:]):
-            d = _seg_dist(px, py, xs[p], ys[p], xs[q], ys[q])
-            if d <= best_d:
-                best, best_d = ("e", a, b), d
+        near.update(ef.get(ekey(a, b), ()))
+    best, best_d = None, tol
+    for fj in near:
+        for v in cage.faces[fj]:
+            if front[v]:
+                d = math.hypot(xs[v] - px, ys[v] - py)
+                if d <= best_d:
+                    best, best_d = ("v", v), d
+    if best:
+        return best
+    best_d = tol
+    for fj in near:
+        g = cage.faces[fj]
+        for i, a in enumerate(g):
+            b = g[(i + 1) % len(g)]
+            chain = skin.curves.get(ekey(a, b))
+            if not chain:
+                continue
+            for p, q in zip(chain, chain[1:]):
+                d = _seg_dist(px, py, xs[p], ys[p], xs[q], ys[q])
+                if d <= best_d:
+                    best, best_d = ("e",) + ekey(a, b), d
     return best or ("f", fi)
 
 
