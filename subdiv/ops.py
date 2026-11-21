@@ -108,13 +108,16 @@ TOOL_SPECS = [
              "or a chamfer. Click an edge again for its loop to bevel the whole loop.",
              "Width", 0.1, 0.001, 1000.0, 0.01, False, True),
     ToolSpec("loft", "subd_loft", "Loft",
-             "Pass a surface through several faces used as sections, in the order you clicked "
-             "them (click one, Shift+click the others). The sections stay where they are. "
-             "Choose whether the ends are closed.",
+             "Pass a surface through several faces used as sections: SubD faces (click one, "
+             "Shift+click the others) or plain faces from your drawing (select them, then "
+             "Apply). They are taken in the order they lie along the piece. The sections "
+             "stay where they are. Choose whether the ends are closed.",
              "Segments", 1.0, 1.0, 32.0, 1.0, False),
     ToolSpec("sweep", "subd_sweep", "Sweep",
              "Carry a face (the profile) along a path: select the face, then Shift+click the "
-             "edges of the path, which must be one chain. The profile turns to follow the path.",
+             "edges of the path, which must be one chain. The profile turns to follow the path. "
+             "The profile and the path can also be a plain face and plain lines from your "
+             "drawing (select them in the model, then Apply).",
              "Twist (deg)", 0.0, -1440.0, 1440.0, 5.0, False),
     ToolSpec("slice", "subd_slice", "Slice",
              "Cut the cage with a plane perpendicular to X, Y or Z through the selected "
@@ -558,6 +561,75 @@ def sweep_items(cage, sels, value, axis="closed") -> Result:
         # the profile shares a point with the path: start the path there
         pass
     n = modeling.sweep(cage, prof, path, closed, closed_ends=axis != "open", twist_deg=value)
+    return Result(None, _T('Swept along {k} points: {n} faces added', k=len(path), n=n))
+
+
+# ---- plain drawing as input (faces and lines drawn outside any SubD group) -------------------
+def _weld_points(cage: Cage, pts, tol: float = 1e-6) -> list[int]:
+    """Cage point numbers for ``pts`` (new ones are added; a point already
+    there within ``tol`` is reused)."""
+    out = []
+    for p in pts:
+        for i, q in enumerate(cage.verts):
+            if abs(q[0] - p[0]) <= tol and abs(q[1] - p[1]) <= tol and abs(q[2] - p[2]) <= tol:
+                out.append(i)
+                break
+        else:
+            out.append(cage._new_vert(p))
+    return out
+
+
+def _order_sections(cage: Cage, sections):
+    """Sections in the order they lie along the piece: from one end, always to
+    the nearest one left (a selection has no click order to follow)."""
+    if len(sections) < 3:
+        return list(sections)
+    cen = []
+    for s in sections:
+        pts = [cage.verts[v] for v in s]
+        cen.append(tuple(sum(p[k] for p in pts) / len(pts) for k in range(3)))
+    mid = tuple(sum(c[k] for c in cen) / len(cen) for k in range(3))
+    left = list(range(len(sections)))
+    cur = max(left, key=lambda i: math.dist(cen[i], mid))
+    order = [cur]
+    left.remove(cur)
+    while left:
+        cur = min(left, key=lambda i: math.dist(cen[i], cen[order[-1]]))
+        order.append(cur)
+        left.remove(cur)
+    return [sections[i] for i in order]
+
+
+def loft_loose(cage: Cage, sels, loops, value, axis="closed") -> Result:
+    """Loft through the selected cage faces and plain faces (``loops`` of xyz)."""
+    sections = [list(cage.faces[x[1]]) for x in sels if x and x[0] == "f"]
+    sections += [_weld_points(cage, lp) for lp in loops]
+    if len(sections) < 2:
+        raise ValueError(_T("Loft: select two or more faces (click one, Shift+click the others)"))
+    sections = _order_sections(cage, sections)
+    n = modeling.loft(cage, sections, int(round(value)), closed_ends=axis != "open")
+    cage.prune()
+    return Result(None, _T('Lofted through {k} sections: {n} faces added', k=len(sections), n=n))
+
+
+def sweep_loose(cage: Cage, sels, loops, segments, value, axis="closed") -> Result:
+    """Sweep a profile (a cage face or a plain face) along a path (cage edges or
+    plain lines, ``segments`` of two xyz points)."""
+    faces = [x for x in sels if x and x[0] == "f"]
+    edges = [(x[1], x[2]) for x in sels if x and x[0] == "e"]
+    if segments:
+        edges = [tuple(_weld_points(cage, seg)) for seg in segments]
+    if faces:
+        prof = list(cage.faces[faces[0][1]])
+    elif len(loops) == 1:
+        prof = _weld_points(cage, loops[0])
+    else:
+        prof = None
+    if prof is None or not edges:
+        raise ValueError(_T("Sweep: select one face (the profile), then Shift+click the edges of the path"))
+    path, closed = modeling.chain_from_edges(edges)
+    n = modeling.sweep(cage, prof, path, closed, closed_ends=axis != "open", twist_deg=value)
+    cage.prune()
     return Result(None, _T('Swept along {k} points: {n} faces added', k=len(path), n=n))
 
 

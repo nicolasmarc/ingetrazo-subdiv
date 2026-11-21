@@ -38,7 +38,7 @@ import logging
 import math
 
 import numpy as np
-from PySide6.QtCore import QEvent, QObject, QPointF, QSize, Qt, QTimer
+from PySide6.QtCore import QEvent, QObject, QPoint, QPointF, QSize, Qt, QTimer
 from PySide6.QtGui import QBrush, QColor, QPen, QPolygonF, QVector3D
 from PySide6.QtWidgets import (
     QButtonGroup, QCheckBox, QComboBox, QDoubleSpinBox, QGridLayout,
@@ -497,6 +497,46 @@ class SubdPanel(QWidget):
         self._configure_value()
         self._sync()
 
+    # ---- plain drawing (faces and lines outside any SubD group) as input --------------------
+    @staticmethod
+    def _xyz_of(v):
+        return (float(v.x()), float(v.y()), float(v.z()))
+
+    def _loose(self):
+        """``(loops, segments)`` of the plain faces and lines selected in the model:
+        each face as its corner points, each line as two points."""
+        loops, segments = [], []
+        for it in list(self.app.scene.selection):
+            if hasattr(it, "mesh") or hasattr(it, "groups"):
+                continue                                  # a group, not drawing
+            try:
+                if hasattr(it, "vertices"):
+                    loops.append([self._xyz_of(v) for v in it.vertices])
+                elif hasattr(it, "a") and hasattr(it, "b"):
+                    segments.append((self._xyz_of(it.a), self._xyz_of(it.b)))
+            except Exception:                                    # noqa: BLE001
+                continue
+        return loops, segments
+
+    def _loose_for_tool(self):
+        """For Loft and Sweep: the plain drawing to use, or None when the SubD
+        selection is already enough (or there is no usable drawing)."""
+        if self.tool not in ("loft", "sweep"):
+            return None
+        sels = self._sels()
+        nf = sum(1 for x in sels if x and x[0] == "f")
+        ne = sum(1 for x in sels if x and x[0] == "e")
+        if self.tool == "loft" and nf >= 2:
+            return None
+        if self.tool == "sweep" and nf == 1 and ne >= 1:
+            return None
+        loops, segments = self._loose()
+        if self.tool == "loft":
+            return (loops, []) if nf + len(loops) >= 2 else None
+        if (nf + len(loops)) >= 1 and (segments or ne):
+            return loops, segments
+        return None
+
     # ---- right-click menu ---------------------------------------------------------------
     MENU_TOOLS = {
         "v": ("edit", "crease", "merge", "dissolve"),
@@ -507,36 +547,120 @@ class SubdPanel(QWidget):
     }
 
     def context_menu(self, menu, _selection) -> None:
-        """Right-click on a point, edge or face of the active SubD piece (on the
-        cage or on the skin): the tools that suit it, run with the panel's value."""
+        """Right-click on a point, edge or face of the active SubD piece (on the cage or
+        on the skin): the tools that suit it. A tool that takes a value asks for it
+        in a small box at the cursor, so the panel is not needed."""
         vp = self.app.viewport
         where = getattr(vp, "_context_pixel", None)
-        g = self.active_group()
-        if g is None or where is None:
+        if where is None:
             return
-        hit = self.pick_item(None, float(where[0]), float(where[1]))
+        self._menu_pos = vp.mapToGlobal(QPoint(int(where[0]), int(where[1])))
+        g = self.active_group()
+        hit = self.pick_item(None, float(where[0]), float(where[1])) if g is not None else None
         if hit is not None and hit not in self._sels():
             self.on_select(hit)
             vp.update()
         sels = self._sels()
-        if hit is None and not sels:
+        keys = []
+        if hit is not None or sels:
+            kind = (hit or sels[0])[0]
+            keys = list(self.MENU_TOOLS.get(kind, ()))
+        loops, segments = self._loose()
+        if len(loops) >= 2 and "loft" not in keys:
+            keys.append("loft")
+        if (loops or sels) and segments and "sweep" not in keys:
+            keys.append("sweep")
+        if not keys and not self._clip:
             return
-        kind = (hit or sels[0])[0]
-        for key in self.MENU_TOOLS.get(kind, ()):
+        for key in keys:
             spec = subdiv_ops.SPECS[key]
-            act = menu.addAction(_icon(spec.icon), T(spec.label))
+            act = menu.addAction(_icon(spec.icon), T(spec.label) + ("…" if spec.value_label else ""))
             act.setToolTip(self._tip(spec))
             act.triggered.connect(lambda _c=False, k=key: QTimer.singleShot(0, lambda: self._run_tool(k)))
-        menu.addSeparator()
-        act = menu.addAction(T("Hide cage") if self.show_cage.isChecked() else T("Show cage"))
-        act.triggered.connect(lambda _c=False: self.show_cage.toggle())
+        if any(x and x[0] == "f" for x in sels):
+            menu.addSeparator()
+            menu.addAction(T("Copy faces"), self.copy_faces)
+        if self._clip:
+            menu.addAction(T("Paste faces"), self.paste_faces)
+        if g is not None:
+            menu.addSeparator()
+            act = menu.addAction(T("Hide cage") if self.show_cage.isChecked() else T("Show cage"))
+            act.triggered.connect(lambda _c=False: self.show_cage.toggle())
 
     def _run_tool(self, key: str) -> None:
         self._pick_tool(key)
         btn = getattr(self, f"_btn_{key}", None)
         if btn is not None:
             btn.setChecked(True)
+        spec = subdiv_ops.SPECS[key]
+        if spec.value_label and not self._ask_value(spec):
+            return
         self.apply()
+
+    def _ask_value(self, spec) -> bool:
+        """A small box at the cursor for the tool's value (Enter = apply, Esc = cancel).
+        Returns False when cancelled."""
+        from PySide6.QtWidgets import QDialog
+        dlg = QDialog(self.app.viewport.window(), Qt.Popup)
+        row = QHBoxLayout(dlg)
+        row.setContentsMargins(8, 6, 8, 6)
+        row.addWidget(QLabel(f"<b>{T(subdiv_ops.SPECS[self.tool].label)}</b> — {T(spec.value_label)}"))
+        box = QDoubleSpinBox()
+        box.setDecimals(self.value.decimals())
+        box.setRange(self.value.minimum(), self.value.maximum())
+        box.setSingleStep(self.value.singleStep())
+        box.setSuffix(self.value.suffix())
+        box.setValue(self.value.value())
+        box.setMinimumWidth(110)
+        box.setKeyboardTracking(False)
+        row.addWidget(box)
+        box.lineEdit().returnPressed.connect(dlg.accept)
+        dlg.move(getattr(self, "_menu_pos", dlg.pos()))
+        box.setFocus()
+        box.selectAll()
+        QTimer.singleShot(0, lambda: (box.setFocus(), box.selectAll()))
+        if dlg.exec() != QDialog.Accepted:
+            return False
+        box.interpretText()
+        self.value.setValue(box.value())
+        return True
+
+    # ---- copy / paste of cage faces ------------------------------------------------------
+    _clip = None                       # a Cage holding the copied faces
+    _clip_owner = False                # True while our copy is the latest one
+
+    def _has_face_sel(self) -> bool:
+        return self.active_group() is not None and any(
+            x and x[0] == "f" for x in self._sels())
+
+    def _has_clip_focus(self) -> bool:
+        return bool(self._clip_owner)
+
+    def copy_faces(self) -> bool:
+        g = self.active_group()
+        faces = sorted({x[1] for x in self._sels() if x and x[0] == "f"})
+        if g is None or not faces:
+            return False
+        cage = _state(g)[0]
+        faces = [f for f in faces if f < len(cage.faces)]
+        self._clip = cage.extract(faces)
+        self._clip_owner = True
+        self._say(T("Copied {n} faces: Ctrl+V pastes them as a new SubD piece", n=len(faces)))
+        return True
+
+    def paste_faces(self) -> bool:
+        if not self._clip or not self._clip.faces:
+            self._say(T("Nothing to paste: select SubD faces and press Ctrl+C first"))
+            return False
+        cage = self._clip.copy()
+        self.pending = None
+        self._commit(None, cage, int(self.levels.value()), self.lines.currentData())
+        n = len(cage.faces)
+        self.sel = ("f", 0)
+        self.extra = [("f", i) for i in range(1, n)]
+        self._say(T("Pasted {n} faces as a new SubD piece: move it with the handles", n=n))
+        self.app.viewport.update()
+        return True
 
     # ---- document / selection --------------------------------------------------------
     def refresh(self) -> None:
@@ -799,11 +923,23 @@ class SubdPanel(QWidget):
                 self._create()
                 return
             g = self.active_group()
-            if g is None:
+            loose = self._loose_for_tool()
+            if g is None and loose is None:
                 raise ValueError(T("Create a SubD box first, or choose a SubD group"))
-            cage, levels, lines = _state(g)
-            cage = cage.copy()
-            if self.extra:
+            if g is None:
+                cage, levels, lines = Cage(), int(self.levels.value()), self.lines.currentData()
+            else:
+                cage, levels, lines = _state(g)
+                cage = cage.copy()
+            if loose is not None:
+                loops, segments = loose
+                if self.tool == "loft":
+                    res = subdiv_ops.loft_loose(cage, self._sels(), loops, self._metres(),
+                                                self._mode())
+                else:
+                    res = subdiv_ops.sweep_loose(cage, self._sels(), loops, segments,
+                                                 self._metres(), self._mode())
+            elif self.extra:
                 res = self._apply_many(cage)
             else:
                 res = subdiv_ops.apply_tool(
@@ -1648,6 +1784,20 @@ class _DragFilter(QObject):
                 return bool(self.panel.mouse_release(ev))
             if t == QEvent.KeyPress and ev.key() == Qt.Key_Escape:
                 return bool(self.panel.cancel_drag())
+            if t in (QEvent.ShortcutOverride, QEvent.KeyPress) and \
+                    ev.modifiers() & Qt.ControlModifier and not ev.modifiers() & Qt.ShiftModifier:
+                if ev.key() == Qt.Key_C:
+                    if self.panel._has_face_sel():
+                        if t == QEvent.KeyPress:
+                            self.panel.copy_faces()
+                        ev.accept()
+                        return True
+                    self.panel._clip_owner = False
+                elif ev.key() == Qt.Key_V and self.panel._clip and self.panel._has_clip_focus():
+                    if t == QEvent.KeyPress:
+                        self.panel.paste_faces()
+                    ev.accept()
+                    return True
         except Exception:                                        # noqa: BLE001
             log.exception(T("SubD drag failed"))
             self.panel._drag = None

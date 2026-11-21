@@ -325,12 +325,8 @@ ES = {
         "Ancho",
     "Loft":
         "Loft",
-    "Pass a surface through several faces used as sections, in the order you clicked them (click one, Shift+click the others). The sections stay where they are. Choose whether the ends are closed.":
-        "Hace pasar una superficie por varias caras usadas como secciones, en el orden de los clics (clic en la primera, Mayús+clic en las demás). Las secciones se quedan donde están. Elige si los extremos se cierran.",
     "Sweep":
         "Barrido",
-    "Carry a face (the profile) along a path: select the face, then Shift+click the edges of the path, which must be one chain. The profile turns to follow the path.":
-        "Lleva una cara (el perfil) a lo largo de un camino: selecciona la cara y luego Mayús+clic en las aristas del camino, que deben formar una sola cadena. El perfil gira para seguir el camino.",
     "Twist (deg)":
         "Torsión (°)",
     "Slice":
@@ -484,4 +480,18 @@ ES = {
         "Suavizado, acabado, tiradores",
     "Hide cage":
         "Ocultar la jaula",
+    "Pass a surface through several faces used as sections: SubD faces (click one, Shift+click the others) or plain faces from your drawing (select them, then Apply). They are taken in the order they lie along the piece. The sections stay where they are. Choose whether the ends are closed.":
+        "Hace pasar una superficie por varias caras usadas como secciones: caras SubD (clic en una, Mayús+clic en las demás) o caras simples de tu dibujo (selecciónalas y pulsa Aplicar). Se toman en el orden en que se suceden. Las secciones se quedan donde están. Elige si los extremos se cierran.",
+    "Carry a face (the profile) along a path: select the face, then Shift+click the edges of the path, which must be one chain. The profile turns to follow the path. The profile and the path can also be a plain face and plain lines from your drawing (select them in the model, then Apply).":
+        "Lleva una cara (el perfil) a lo largo de un camino: selecciona la cara y luego Mayús+clic en las aristas del camino, que deben formar una sola cadena. El perfil gira para seguir el camino. El perfil y el camino también pueden ser una cara simple y líneas simples de tu dibujo (selecciónalos en el modelo y pulsa Aplicar).",
+    "Copy faces":
+        "Copiar caras",
+    "Paste faces":
+        "Pegar caras",
+    "Copied {n} faces: Ctrl+V pastes them as a new SubD piece":
+        "{n} caras copiadas: Ctrl+V las pega como una pieza SubD nueva",
+    "Nothing to paste: select SubD faces and press Ctrl+C first":
+        "Nada que pegar: selecciona caras SubD y pulsa Ctrl+C antes",
+    "Pasted {n} faces as a new SubD piece: move it with the handles":
+        "{n} caras pegadas como pieza SubD nueva: muévela con los tiradores",
 }

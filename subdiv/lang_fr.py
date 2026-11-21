@@ -325,12 +325,8 @@ FR = {
         "Largeur",
     "Loft":
         "Loft",
-    "Pass a surface through several faces used as sections, in the order you clicked them (click one, Shift+click the others). The sections stay where they are. Choose whether the ends are closed.":
-        "Fait passer une surface par plusieurs faces servant de sections, dans l'ordre des clics (cliquer la première, Maj+clic sur les autres). Les sections restent en place. Choisir si les extrémités sont fermées.",
     "Sweep":
         "Balayage",
-    "Carry a face (the profile) along a path: select the face, then Shift+click the edges of the path, which must be one chain. The profile turns to follow the path.":
-        "Fait avancer une face (le profil) le long d'un chemin : sélectionner la face, puis Maj+clic sur les arêtes du chemin, qui doivent former une seule chaîne. Le profil tourne pour suivre le chemin.",
     "Twist (deg)":
         "Torsion (°)",
     "Slice":
@@ -484,4 +480,18 @@ FR = {
         "Lissage, finition, poignées",
     "Hide cage":
         "Masquer la cage",
+    "Pass a surface through several faces used as sections: SubD faces (click one, Shift+click the others) or plain faces from your drawing (select them, then Apply). They are taken in the order they lie along the piece. The sections stay where they are. Choose whether the ends are closed.":
+        "Fait passer une surface par plusieurs faces servant de sections : faces SubD (cliquer l'une, Maj+clic sur les autres) ou faces simples de votre dessin (les sélectionner, puis Appliquer). Elles sont prises dans l'ordre où elles se suivent. Les sections restent en place. Choisir si les extrémités sont fermées.",
+    "Carry a face (the profile) along a path: select the face, then Shift+click the edges of the path, which must be one chain. The profile turns to follow the path. The profile and the path can also be a plain face and plain lines from your drawing (select them in the model, then Apply).":
+        "Fait avancer une face (le profil) le long d'un chemin : sélectionner la face, puis Maj+clic sur les arêtes du chemin, qui doivent former une seule chaîne. Le profil tourne pour suivre le chemin. Le profil et le chemin peuvent aussi être une face simple et des lignes simples de votre dessin (les sélectionner dans le modèle, puis Appliquer).",
+    "Copy faces":
+        "Copier les faces",
+    "Paste faces":
+        "Coller les faces",
+    "Copied {n} faces: Ctrl+V pastes them as a new SubD piece":
+        "{n} faces copiées : Ctrl+V les colle comme une nouvelle pièce SubD",
+    "Nothing to paste: select SubD faces and press Ctrl+C first":
+        "Rien à coller : sélectionner des faces SubD et appuyer sur Ctrl+C d'abord",
+    "Pasted {n} faces as a new SubD piece: move it with the handles":
+        "{n} faces collées en nouvelle pièce SubD : la déplacer avec les poignées",
 }

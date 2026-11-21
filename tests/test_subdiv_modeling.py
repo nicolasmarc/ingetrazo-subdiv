@@ -444,3 +444,45 @@ def test_skin_picking_works_with_creases_and_at_level_zero():
     assert pick(0.0, 0.0) is not None
     _s0, pick0 = _view_from_plus_x(c, 0)
     assert pick0(0.0, 0.0)[0] == "f"
+
+
+# ---- plain drawing as input ----------------------------------------------------------------
+def _sq(z, r=1.0):
+    return [(-r, -r, z), (r, -r, z), (r, r, z), (-r, r, z)]
+
+
+def test_loft_from_plain_faces_orders_them_along_the_piece():
+    from subdiv import ops
+    c = Cage()
+    # given out of order: the middle one first
+    res = ops.loft_loose(c, [], [_sq(1.0), _sq(0.0), _sq(2.0)], 1)
+    assert "Lofted through 3" in res.message
+    assert c.is_consistent() and len(c.faces) >= 8
+    zs = sorted({round(v[2], 6) for v in c.verts})
+    assert zs[0] == 0.0 and zs[-1] == 2.0
+
+
+def test_sweep_from_plain_face_and_lines():
+    from subdiv import ops
+    c = Cage()
+    path = [((0, 0, 0), (0, 0, 1)), ((0, 0, 1), (0, 0, 2)), ((0, 0, 2), (1, 0, 3))]
+    res = ops.sweep_loose(c, [], [_sq(0.0, 0.2)], path, 0.0)
+    assert "Swept along 4 points" in res.message
+    assert c.is_consistent()
+
+
+def test_sweep_cage_face_along_plain_lines():
+    from subdiv import ops
+    c = Cage.box((1, 1, 1), center=(0, 0, 0.5))
+    top = max(range(len(c.faces)), key=lambda i: c.face_centroid(i)[2])
+    path = [((0, 0, 1), (0, 0, 2)), ((0, 0, 2), (0, 1, 3))]
+    res = ops.sweep_loose(c, [("f", top)], [], path, 0.0)
+    assert res.message.startswith("Swept")
+    assert max(v[2] for v in c.verts) >= 3.0 - 1e-9
+
+
+def test_loft_needs_two_sections():
+    from subdiv import ops
+    import pytest
+    with pytest.raises(ValueError):
+        ops.loft_loose(Cage(), [], [_sq(0.0)], 1)
