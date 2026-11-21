@@ -2,7 +2,7 @@
 
 ## 1.4 (trial)
 
-- Faster modelling: each edit shows a light surface at once (about 1 000 triangles) and the full smoothing is built when you pause (0.6 s), inside the same undo step. Can be switched off ("Light surface while editing"). The surface is also filled with the host's bulk builder when it has one.
+- Faster modelling: each edit shows a light surface at once (at most about 2 500 triangles, so only big pieces get one) and the full smoothing is built when you pause (0.45 s), inside the same undo step. Can be switched off ("Light surface while editing"). The surface is also filled with the host's bulk builder when it has one.
 - Loft and Bridge between two SubD groups: Shift+click a face of the other group (on its skin or its cage); it is joined into the active group (one undo step) and the face is added to the selection. A plain click on another group's skin now makes it the active one too.
 - Loft twist is a real twist: rings in between keep their radius (no pinched waist), and a twist with fewer than 3 segments uses 4 so that it shows.
 - Loft, Sweep and Revolve show a preview of their result as soon as what they need is selected, before Apply.
@@ -14,7 +14,7 @@
 - Slice shows its cutting plane as a see-through sheet (it follows the offset and the X/Y/Z choice, also while you adjust); the tool starts on Z.
 - The move and rotate handles always show the three axes: the direction list (X/Y/Z) no longer reduces them to one ring and one arrow.
 - Sweep from a face of the piece: the tube now grows out of that face and is welded to it (the face goes), so the piece is no longer cut in two.
-- Faster: "Automatic" smoothing aims at 8 000 triangles (it was 25 000), the hover highlight no longer builds every skin point, and the pick works on the arrays directly.
+- Faster: "Automatic" smoothing aims at 4 000 triangles (it was 25 000), the hover highlight no longer builds every skin point, and the pick works on the arrays directly.
 - Points are easier to grab on the skin: bigger zone, and the points of the face or edge under the cursor are shown as small dots.
 - The value box can be dragged by any of its text and is moved by the system (smoother).
 - Delete (Supr) on a picked SubD face, edge or point removes just that part (one undo step); before, it could erase the whole piece. Loft / Sweep / Revolve show the plain drawing they will use ("Drawing: n face(s), n line(s)").

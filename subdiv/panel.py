@@ -1385,8 +1385,8 @@ class SubdPanel(QWidget):
                                ray=ray, skip=skip)
 
     # ---- changing the model ----------------------------------------------------------
-    FAST_TRIS = 1000           # triangles of the light surface shown while you work
-    REFINE_MS = 600            # the full surface is built after this long without an edit
+    FAST_TRIS = 2500           # triangles of the light surface shown while you work
+    REFINE_MS = 450            # the full surface is built after this long without an edit
 
     def _commit(self, old, cage: Cage, levels: int, lines: str, final: bool = False) -> None:
         vp = self.app.viewport

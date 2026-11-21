@@ -339,7 +339,7 @@ def triangle_count(cage: Cage, levels: int) -> int:
     return 2 * quads
 
 
-def auto_levels(cage: Cage, budget: int = 8000, max_level: int = 4) -> int:
+def auto_levels(cage: Cage, budget: int = 4000, max_level: int = 4) -> int:
     """The smoothest level (0..max_level) whose surface stays within ``budget``
     triangles — dense where the cage is simple, lighter where it is big."""
     best = 0
