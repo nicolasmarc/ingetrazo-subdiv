@@ -518,4 +518,8 @@ FR = {
         "Les {n} faces sont sélectionnées : Ctrl + tirer une poignée de déplacement copie la pièce",
     "Whole piece selected: move it, copy it, or press Delete to remove it":
         "Pièce entière sélectionnée : la déplacer, la copier, ou appuyer sur Suppr pour l'effacer",
+    "Deleted — Ctrl+Z brings it back":
+        "Supprimé — Ctrl+Z pour annuler",
+    "Drawing: {f} face(s), {l} line(s)":
+        "Dessin : {f} face(s), {l} ligne(s)",
 }

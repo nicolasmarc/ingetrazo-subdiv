@@ -413,7 +413,20 @@ class SubdPanel(QWidget):
         self.cut.setVisible(self.tool == "divide")
         self.ends.setVisible(self.tool in ("loft", "sweep"))
         suffix = T("  (waiting for the second opening)") if self.pending else ""
-        self.selection_label.setText(subdiv_ops.describe_many(self._sels()) + suffix)
+        self.selection_label.setText(subdiv_ops.describe_many(self._sels()) + suffix
+                                     + self._loose_note())
+
+    def _loose_note(self) -> str:
+        """What plain drawing Loft / Sweep / Revolve will use (so you see it was seen)."""
+        if self.tool not in ("loft", "sweep", "revolve"):
+            return ""
+        try:
+            loops, segments = self._loose()
+        except Exception:                                    # noqa: BLE001
+            return ""
+        if not loops and not segments:
+            return ""
+        return "  |  " + T("Drawing: {f} face(s), {l} line(s)", f=len(loops), l=len(segments))
 
     def _unit_name(self) -> str:
         """The unit the value box shows, in words (the help texts use it)."""
@@ -1138,6 +1151,33 @@ class SubdPanel(QWidget):
                 self.extra = []
         elif self.tool != "bridge":
             self._bridge_first = None
+        self._sync()
+
+    def delete_item(self, item) -> None:
+        """Supr on a selected SubD item removes just that: a face, the faces on an
+        edge, or the faces around a point. The rest of the piece stays (one undo step)."""
+        g = self.active_group()
+        if g is None or item is None:
+            return
+        cage, levels, lines = _state(g)
+        cage = cage.copy()
+        kind, idx = item[0], item[1]
+        if kind == "f":
+            drop = {idx}
+        elif kind == "e":
+            a, b = item[1], item[2]
+            drop = {i for i, f in enumerate(cage.faces)
+                    if any({f[k], f[(k + 1) % len(f)]} == {a, b} for k in range(len(f)))}
+        else:                                          # a point
+            drop = {i for i, f in enumerate(cage.faces) if idx in f}
+        if not drop or len(drop) >= len(cage.faces):
+            self._say(T("A cage needs at least one face"))
+            return
+        cage.remove_faces(drop)
+        cage.prune()
+        self._commit(g, cage, levels, lines)
+        self._clear_sel()
+        self._say(T("Deleted — Ctrl+Z brings it back"))
         self._sync()
 
     def _activate_under(self, px: float, py: float) -> bool:
@@ -2349,9 +2389,19 @@ class _DragFilter(QObject):
                     self.panel.hover_move(ev)
                 return bool(self.panel.mouse_move(ev))
             if t == QEvent.MouseButtonRelease and ev.button() == Qt.LeftButton:
+                QTimer.singleShot(60, self.panel._sync)       # the drawing selection may have changed
                 return bool(self.panel.mouse_release(ev))
             if t == QEvent.KeyPress and ev.key() == Qt.Key_Escape:
                 return bool(self.panel.cancel_drag())
+            if t in (QEvent.ShortcutOverride, QEvent.KeyPress) and \
+                    ev.key() in (Qt.Key_Delete, Qt.Key_Backspace) and not ev.modifiers():
+                vp = self.panel.app.viewport                # Supr: the SubD item picked
+                if (self.panel.sel is not None and self.panel.active_group() is not None
+                        and not vp.scene.selection):         # (a whole piece selected: host erases it)
+                    if t == QEvent.KeyPress:
+                        self.panel.delete_item(self.panel.sel)
+                    ev.accept()
+                    return True
             if t in (QEvent.ShortcutOverride, QEvent.KeyPress) and \
                     ev.modifiers() & Qt.ControlModifier and not ev.modifiers() & Qt.ShiftModifier:
                 if ev.key() == Qt.Key_C:
@@ -2400,7 +2450,7 @@ def setup(app) -> None:
         dock = app.add_panel("SubD", scroll)
     app.on_document_changed(panel.refresh)
     app.add_overlay(panel.draw)
-    app.add_pickable(panel.pick_item, on_select=panel.on_select)
+    app.add_pickable(panel.pick_item, on_select=panel.on_select, delete=panel.delete_item)
     if hasattr(app, "add_context_menu"):
         app.add_context_menu(panel.context_menu)
     panel.axis.currentIndexChanged.connect(lambda _i: app.viewport.update())

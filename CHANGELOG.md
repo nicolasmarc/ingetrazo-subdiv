@@ -2,6 +2,7 @@
 
 ## 1.4 (trial)
 
+- Delete (Supr) on a picked SubD face, edge or point removes just that part (one undo step); before, it could erase the whole piece. Loft / Sweep / Revolve show the plain drawing they will use ("Drawing: n face(s), n line(s)").
 - Triple click on a SubD piece selects the whole piece (move it, Ctrl+drag to copy it, Delete to remove it). The second click of a double-click no longer enters the host's group editing, which hid the SubD handles.
 - Compact panel: icon-only tool buttons (name and description shown above the value), "Join, split, convert" and "Smoothing, finish, handles" are collapsible and closed at first.
 - "Pick on the skin" is now on by default and sits under the status line; with the cage shown, a cage point or edge you aim at still wins, otherwise the skin is picked. Edge picking on the skin also considers the neighbouring faces and is more tolerant.
