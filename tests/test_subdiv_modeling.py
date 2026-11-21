@@ -587,3 +587,14 @@ def test_loft_twist_turns_the_second_section_and_stays_closed():
     def shape(c):
         return sorted(sorted(c.verts[v] for v in f) for f in c.faces)
     assert shape(straight) != shape(turned)
+
+
+def test_twisted_loft_with_rings_in_between_keeps_its_radius():
+    c = Cage()
+    import math as _m
+    def ring(z, n=8):
+        return [c._new_vert((_m.cos(2 * _m.pi * i / n), _m.sin(2 * _m.pi * i / n), z)) for i in range(n)]
+    a, b = ring(0.0), ring(2.0)
+    modeling.loft(c, [a, b], 4, closed_ends=True, twist_deg=45)
+    radii = [_m.hypot(x, y) for (x, y, z) in c.verts if 0.0 < z < 2.0]
+    assert radii and min(radii) > 0.97 and max(radii) < 1.03       # no pinched waist

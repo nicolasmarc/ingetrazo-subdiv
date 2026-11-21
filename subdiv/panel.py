@@ -1291,7 +1291,10 @@ class SubdPanel(QWidget):
         for other in self._others():
             cage = _state(other)[0]
             xs, ys, front = self.app.world_to_pixels(np.array(cage.verts, dtype=float))
-            if subdiv_ops.pick(cage, xs.tolist(), ys.tolist(), front.tolist(), px, py):
+            hit = bool(subdiv_ops.pick(cage, xs.tolist(), ys.tolist(), front.tolist(), px, py))
+            if not hit and self.skin_pick.isChecked():          # its skin works too
+                hit = self._pick_on_skin(other, px, py) is not None
+            if hit:
                 self.active_uid = other.uid
                 self._clear_sel()
                 self.pending = None
@@ -1626,6 +1629,77 @@ class SubdPanel(QWidget):
             notify()
         self._say(T("Joined. Choose Bridge, then click a face on each piece (Apply after each)"))
         vp.update()
+
+    def _absorb(self, a, b):
+        """Join SubD group ``b`` into ``a`` (undoable); returns ``(first point, first face)``
+        of what came from ``b`` in the new cage, or None."""
+        ca, levels, lines = _state(a)
+        cage = ca.copy()
+        v0, f0 = cage.merge(_state(b)[0])
+        if self.auto.isChecked():
+            levels = subdiv_group.auto_levels(cage)
+        vp = self.app.viewport
+        new = subdiv_group.build_group(cage, levels, Group, Mesh, QVector3D,
+                                       name=a.name, lines=lines)
+        subdiv_group.carry_over(a, new)
+        vp.history.execute(_Join(a, b, new))
+        if getattr(vp.history, "last_error", None):
+            self._say(T("Could not join: {err}", err=vp.history.last_error))
+            return None
+        self.active_uid = new.uid
+        notify = getattr(vp, "notify_scene_changed", None)
+        if callable(notify):
+            notify()
+        return v0, f0
+
+    def _other_hit(self, px: float, py: float):
+        """``(group, item)`` for a point, edge or face of ANOTHER SubD group under the
+        pointer (on its skin, or on its cage), or None."""
+        for other in self._others():
+            hit = None
+            if self.skin_pick.isChecked():
+                hit = self._pick_on_skin(other, px, py)
+            if hit is None:
+                cage = _state(other)[0]
+                hit = self._pick_on_cage(other, px, py)
+            if hit is not None:
+                return other, hit
+        return None
+
+    def _join_pick(self, pos) -> bool:
+        """Shift+click on a face of another SubD group while Loft or Bridge is the tool:
+        that group is joined into the active one (one undo step) and the face is added to
+        the selection, so you can loft or bridge between two pieces."""
+        a = self.active_group()
+        if a is None or self.tool not in ("loft", "bridge") or \
+                self.pick_item(None, pos.x(), pos.y()) is not None:
+            return False
+        found = self._other_hit(pos.x(), pos.y())
+        if found is None:
+            return False
+        other, item = found
+        keep = self._sels()
+        done = self._absorb(a, other)
+        if done is None:
+            return True
+        v0, f0 = done
+        if item[0] == "f":
+            item = ("f", item[1] + f0)
+        elif item[0] == "e":
+            item = ("e", item[1] + v0, item[2] + v0)
+        else:
+            item = ("v", item[1] + v0)
+        sels = keep + [item]
+        self.sel = sels[-1]
+        self.extra = sels[:-1]
+        self._swallow = True
+        self.pending = None
+        self._say(T("Joined the other piece: now Apply to {tool} between them",
+                    tool=T(subdiv_ops.SPECS[self.tool].label)))
+        self.refresh()
+        self._sync()
+        self.app.viewport.update()
+        return True
 
     def split(self) -> None:
         """Undo a Join: every piece of the cage that shares no point with the
@@ -2271,6 +2345,8 @@ class SubdPanel(QWidget):
         if not (self.show_cage.isChecked() or self.skin_pick.isChecked()):
             return False
         pos = ev.position()
+        if shift and self._join_pick(pos):
+            return True
         if self._activate_under(pos.x(), pos.y()):
             self.refresh()
             vp.update()

@@ -538,4 +538,6 @@ FR = {
         "Groupe entier retourné (sélectionne une face pour ne retourner que sa partie)",
     "Blue faces are seen from behind. Flip turns over the connected part that holds the selected face; with nothing selected, the whole group.":
         "Les faces bleues sont vues de dos. Retourner inverse la partie connectée qui contient la face sélectionnée ; sans sélection, tout le groupe.",
+    "Joined the other piece: now Apply to {tool} between them":
+        "Autre pièce jointe : appliquer maintenant {tool} entre elles",
 }

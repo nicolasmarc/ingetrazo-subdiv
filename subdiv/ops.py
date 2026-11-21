@@ -551,7 +551,10 @@ def loft_items(cage, sels, value, axis="closed", twist_deg=0.0) -> Result:
     if len(sections) < 2:
         raise ValueError(_T("Loft: select two or more faces (click one, Shift+click the others)"))
     sections, faces = _order_both(cage, sections, faces)
-    n = modeling.loft(cage, sections, int(round(value)), closed_ends=axis != "open", faces=faces,
+    seg = int(round(value))
+    if twist_deg and seg < 3:
+        seg = 4                              # a twist only shows with rings in between
+    n = modeling.loft(cage, sections, seg, closed_ends=axis != "open", faces=faces,
                        twist_deg=twist_deg)
     return Result(None, _T('Lofted through {k} sections: {n} faces added', k=len(sections), n=n))
 
@@ -624,7 +627,10 @@ def loft_loose(cage: Cage, sels, loops, value, axis="closed", twist_deg=0.0) -> 
     if len(sections) < 2:
         raise ValueError(_T("Loft: select two or more faces (click one, Shift+click the others)"))
     sections, faces = _order_both(cage, sections, faces)
-    n = modeling.loft(cage, sections, int(round(value)), closed_ends=axis != "open", faces=faces,
+    seg = int(round(value))
+    if twist_deg and seg < 3:
+        seg = 4                              # a twist only shows with rings in between
+    n = modeling.loft(cage, sections, seg, closed_ends=axis != "open", faces=faces,
                        twist_deg=twist_deg)
     cage.prune()
     return Result(None, _T('Lofted through {k} sections: {n} faces added', k=len(sections), n=n))

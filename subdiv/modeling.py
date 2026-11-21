@@ -746,20 +746,40 @@ def loft(cage: Cage, sections: Sequence[Sequence[int]], segments: int = 1,
         # the first ring keeps its own order; later ones are lined up on it
         full = []
         k = len(rings)
+        twisting = bool(twist_deg) or bool(twist)
+
+        def centre(r):
+            return tuple(sum(q[c] for q in r) / len(r) for c in range(3))
+
+        def round_off(ring, r0, r1, u):
+            """A twisted ring made by sliding points along chords is pinched: bring each
+            point back to the radius it should have between the two sections."""
+            c0, c1, cc = centre(r0), centre(r1), centre(ring)
+            out = []
+            for j, q in enumerate(ring):
+                d = _sub(q, cc)
+                n = _len(d)
+                want = (1 - u) * _len(_sub(r0[j], c0)) + u * _len(_sub(r1[j], c1))
+                out.append(_add(cc, _mul(d, want / n)) if n > 1e-9 else q)
+            return out
+
         for i in range(k - 1):
             full.append(rings[i])
             for s in range(1, segments):
                 u = s / segments
                 if k == 2:
-                    full.append([_lerp(a, b, u) for a, b in zip(rings[0], rings[1])])
+                    ring = [_lerp(a, b, u) for a, b in zip(rings[0], rings[1])]
                 else:
                     r0, r1 = rings[i], rings[i + 1]
                     rm = rings[i - 1] if i > 0 else None
                     rp = rings[i + 2] if i + 2 < k else None
-                    full.append([
+                    ring = [
                         _catmull(rm[j] if rm else _sub(_mul(r0[j], 2), r1[j]), r0[j], r1[j],
                                  rp[j] if rp else _sub(_mul(r1[j], 2), r0[j]), u)
-                        for j in range(m)])
+                        for j in range(m)]
+                if twisting:
+                    ring = round_off(ring, rings[i], rings[i + 1], u)
+                full.append(ring)
         full.append(rings[-1])
         reuse, caps, drop = None, None, []
         if faces is not None and any(f is not None for f in faces):

@@ -538,4 +538,6 @@ ES = {
         "Grupo entero invertido (selecciona una cara para invertir solo su parte)",
     "Blue faces are seen from behind. Flip turns over the connected part that holds the selected face; with nothing selected, the whole group.":
         "Las caras azules se ven por detrás. Invertir da la vuelta a la parte conectada de la cara seleccionada; sin selección, todo el grupo.",
+    "Joined the other piece: now Apply to {tool} between them":
+        "Otra pieza unida: aplica ahora {tool} entre ellas",
 }
