@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4 (trial)
+## 1.4
 
 - Faster modelling: each edit shows a light surface at once (at most about 2 500 triangles, so only big pieces get one) and the full smoothing is built when you pause (0.45 s), inside the same undo step. Can be switched off ("Light surface while editing"). The surface is also filled with the host's bulk builder when it has one.
 - Loft and Bridge between two SubD groups: Shift+click a face of the other group (on its skin or its cage); it is joined into the active group (one undo step) and the face is added to the selection. A plain click on another group's skin now makes it the active one too.

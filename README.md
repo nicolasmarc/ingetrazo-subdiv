@@ -22,6 +22,15 @@ The panel speaks English, French and Spanish: it follows IngeTrazo's language
 
 Full guide: [`docs/subdivision.md`](docs/subdivision.md).
 
+## What's new in 1.4 / Nouveautés de la 1.4
+
+- Faster modelling: a light surface shows at once, the full smoothing follows when you pause. / Modélisation plus rapide : une surface légère s'affiche tout de suite, le lissage complet suit quand vous faites une pause.
+- Preview before Apply for Loft, Sweep and Revolve; Loft twist; Esc cancels a tool. / Aperçu avant validation pour Loft, Balayage et Révolution ; twist du Loft ; Échap annule l'outil.
+- Loft/Bridge between two SubD groups (Shift+click). / Loft/Pont entre deux groupes SubD (Maj+clic).
+- Right-click menu, easier point/face picking, symmetry plane always visible. / Menu clic droit, sélection des points/faces plus facile, plan de symétrie toujours visible.
+
+See [`CHANGELOG.md`](CHANGELOG.md).
+
 ## Install
 
 Needs IngeTrazo 0.5.7 or newer.
