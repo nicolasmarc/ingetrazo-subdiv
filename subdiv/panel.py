@@ -115,6 +115,7 @@ class SubdPanel(QWidget):
         self._unit = None            # the document's unit the value box shows
         self._scale = 1.0            # metres per displayed unit
         self.tool = "grow_face"
+        self._last_value = {}
         self._building = True
 
         lay = QVBoxLayout(self)
@@ -612,7 +613,7 @@ class SubdPanel(QWidget):
             return
         for key in keys:
             spec = subdiv_ops.SPECS[key]
-            act = menu.addAction(_icon(spec.icon), T(spec.label) + ("…" if spec.value_label else ""))
+            act = menu.addAction(_icon(spec.icon), T(spec.label) + ("…" if self._takes_input(key) else ""))
             act.setToolTip(self._tip(spec))
             act.triggered.connect(lambda _c=False, k=key: QTimer.singleShot(0, lambda: self._run_tool(k)))
         if any(x and x[0] == "f" for x in sels):
@@ -622,6 +623,14 @@ class SubdPanel(QWidget):
             menu.addAction(T("Paste faces"), self.paste_faces)
         if g is not None:
             menu.addSeparator()
+            a = menu.addAction(T("Symmetry"))
+            a.setCheckable(True)
+            a.setChecked(self.sym_box.isChecked())
+            a.triggered.connect(lambda _c=False: self.sym_box.toggle())
+            a = menu.addAction(T("Soft"))
+            a.setCheckable(True)
+            a.setChecked(self.soft_box.isChecked())
+            a.triggered.connect(lambda _c=False: self.soft_box.toggle())
             sm = menu.addMenu(T("Smoothing"))
             cur = _state(g)[1]
             for n in range(5):
@@ -636,46 +645,106 @@ class SubdPanel(QWidget):
             act = menu.addAction(T("Hide cage") if self.show_cage.isChecked() else T("Show cage"))
             act.triggered.connect(lambda _c=False: self.show_cage.toggle())
 
+    def _takes_input(self, key: str) -> bool:
+        """Does the tool ask for a value or a choice (so the menu entry opens the box)?"""
+        spec = subdiv_ops.SPECS[key]
+        if spec.value_label or spec.axis:
+            return True
+        return key in ("shell", "divide", "loft", "sweep")
+
     def _run_tool(self, key: str) -> None:
         self._pick_tool(key)
         btn = getattr(self, f"_btn_{key}", None)
         if btn is not None:
             btn.setChecked(True)
         spec = subdiv_ops.SPECS[key]
-        if spec.value_label and not self._ask_value(spec):
+        if spec.value_label and key in self._last_value:      # the value last typed for it
+            self.value.setValue(self._last_value[key])
+        if (spec.value_label or self._tool_combo() is not None) and not self._ask_value(spec):
             return
         self.apply()
 
+    def _tool_combo(self):
+        """The panel's choice that goes with the current tool (wall side, cut style,
+        ends, direction), or None."""
+        if self.tool == "shell":
+            return self.side
+        if self.tool == "divide":
+            return self.cut
+        if self.tool in ("loft", "sweep"):
+            return self.ends
+        return self.axis if subdiv_ops.SPECS[self.tool].axis else None
+
     def _ask_value(self, spec) -> bool:
-        """A small box at the cursor for the tool's value (Enter = apply, Esc = cancel).
-        Returns False when cancelled."""
+        """A small box at the cursor with everything the tool asks for: its value and
+        its choice (direction, wall side, cut style, ends). Enter applies, Esc cancels;
+        the panel keeps what was chosen. Returns False when cancelled."""
         from PySide6.QtWidgets import QDialog
-        dlg = QDialog(self.app.viewport.window(), Qt.Popup)
-        row = QHBoxLayout(dlg)
-        row.setContentsMargins(8, 6, 8, 6)
-        row.addWidget(QLabel(f"<b>{T(subdiv_ops.SPECS[self.tool].label)}</b> — {T(spec.value_label)}"))
-        box = QDoubleSpinBox()
-        box.setDecimals(self.value.decimals())
-        box.setRange(self.value.minimum(), self.value.maximum())
-        box.setSingleStep(self.value.singleStep())
-        box.setSuffix(self.value.suffix())
-        box.setValue(self.value.value())
-        box.setMinimumWidth(110)
-        box.setKeyboardTracking(False)
-        row.addWidget(box)
-        box.lineEdit().returnPressed.connect(dlg.accept)
+        label = T(subdiv_ops.SPECS[self.tool].label)
+
+        class _Box(QDialog):
+            def keyPressEvent(self, ev):                          # noqa: N802
+                if ev.key() in (Qt.Key_Return, Qt.Key_Enter):
+                    self.accept()
+                else:
+                    super().keyPressEvent(ev)
+
+        dlg = _Box(self.app.viewport.window(), Qt.Popup)
+        col = QVBoxLayout(dlg)
+        col.setContentsMargins(10, 8, 10, 8)
+        col.addWidget(QLabel(f"<b>{label}</b>"))
+        box = None
+        if spec.value_label:
+            row = QHBoxLayout()
+            row.addWidget(QLabel(T(spec.value_label)))
+            box = QDoubleSpinBox()
+            box.setDecimals(self.value.decimals())
+            box.setRange(self.value.minimum(), self.value.maximum())
+            box.setSingleStep(self.value.singleStep())
+            box.setSuffix(self.value.suffix())
+            box.setValue(self.value.value())
+            box.setMinimumWidth(110)
+            box.setKeyboardTracking(False)
+            row.addWidget(box, 1)
+            col.addLayout(row)
+        src = self._tool_combo()
+        combo = None
+        if src is not None:
+            combo = QComboBox()
+            for i in range(src.count()):
+                combo.addItem(src.itemText(i), src.itemData(i))
+            combo.setCurrentIndex(src.currentIndex())
+            col.addWidget(combo)
+        radius = None
+        if self.tool == "edit" and self.soft_box.isChecked():
+            row = QHBoxLayout()
+            row.addWidget(QLabel(T("Soft")))
+            radius = QDoubleSpinBox()
+            radius.setDecimals(self.soft_radius.decimals())
+            radius.setRange(self.soft_radius.minimum(), self.soft_radius.maximum())
+            radius.setSuffix(self.soft_radius.suffix())
+            radius.setValue(self.soft_radius.value())
+            row.addWidget(radius, 1)
+            col.addLayout(row)
+        first = box or combo
         dlg.move(getattr(self, "_menu_pos", dlg.pos()))
-        box.setFocus()
-        box.selectAll()
-        QTimer.singleShot(0, lambda: (box.setFocus(), box.selectAll()))
+        QTimer.singleShot(0, lambda: (first.setFocus(), box.selectAll() if box else None))
         if dlg.exec() != QDialog.Accepted:
             return False
-        box.interpretText()
-        self.value.setValue(box.value())
+        if box is not None:
+            box.interpretText()
+            self.value.setValue(box.value())
+            self._last_value[self.tool] = box.value()
+        if combo is not None:
+            src.setCurrentIndex(combo.currentIndex())
+        if radius is not None:
+            radius.interpretText()
+            self.soft_radius.setValue(radius.value())
         return True
 
     # ---- copy / paste of cage faces ------------------------------------------------------
     _clip = None                       # a Cage holding the copied faces
+    _last_value: dict = {}             # per tool, the value last typed in the right-click box
     _clip_owner = False                # True while our copy is the latest one
 
     def _has_face_sel(self) -> bool:

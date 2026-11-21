@@ -7,7 +7,7 @@
 - The SubD panel tab now has an icon.
 - Right-click on a point, edge or face (on the cage or on the skin) opens a SubD menu with the tools that suit it, run with the panel's value.
 - Revolve, Loft and Sweep accept plain faces and lines from the drawing (select them in the model, then Apply); no SubD group is needed first.
-- Tools that take a value (Bevel, Offset…) ask for it in a small box at the cursor when run from the right-click menu.
+- Tools that take a value or a choice (Bevel, Offset, Shell side, Divide cut, Loft ends, direction…) ask for it in a small box at the cursor when run from the right-click menu; the last value typed per tool is remembered. Symmetry and Soft are toggles in that menu.
 - Ctrl+C / Ctrl+V (and menu entries) copy selected SubD faces and paste them as a new SubD piece.
 - Right-click on the SubD piece opens a menu of SubD tools only (switchable in "Smoothing, finish, handles"), with Smoothing 0 to 4 / Auto.
 - Move / rotate handles are drawn (and usable) with the cage hidden.
