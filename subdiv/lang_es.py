@@ -506,4 +506,14 @@ ES = {
         "Herramientas del clic derecho: ajustar con el ratón",
     "A tool chosen from the right-click menu follows the mouse: move to set the value and see the result, click to apply, Enter to type an exact value, Esc to cancel. Shift = finer, Ctrl = snap to steps. Untick to always get the value box.":
         "Una herramienta elegida en el menú del clic derecho sigue al ratón: mueve para fijar el valor y ver el resultado, clic para aplicar, Intro para escribir un valor exacto, Esc para cancelar. Mayús = más fino, Ctrl = por pasos. Desmarca para tener siempre el cuadro de valor.",
+    "Ctrl: dragging a copy":
+        "Ctrl: arrastrando una copia",
+    "Copy made: {n} faces":
+        "Copia hecha: {n} caras",
+    "Enter applies, Esc cancels":
+        "Intro aplica, Esc cancela",
+    "Select all faces":
+        "Seleccionar todo",
+    "All {n} faces selected: Ctrl + drag a move handle copies the piece":
+        "Las {n} caras están seleccionadas: Ctrl + arrastrar un tirador de movimiento copia la pieza",
 }

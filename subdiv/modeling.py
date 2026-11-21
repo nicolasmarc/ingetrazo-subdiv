@@ -870,3 +870,27 @@ def sweep(cage: Cage, profile: Sequence[int], path: Sequence[int], closed_path: 
     except Exception:
         _restore(cage, snap)
         raise
+
+
+def duplicate_faces(cage: Cage, faces) -> tuple[list[int], list[int]]:
+    """Add a detached copy of ``faces`` (with their own new points, colours and
+    creases). Returns the new point numbers and the new face numbers."""
+    faces = sorted(set(faces))
+    vmap: dict[int, int] = {}
+    new_faces = []
+    for fi in faces:
+        loop = []
+        for v in cage.faces[fi]:
+            if v not in vmap:
+                vmap[v] = cage._new_vert(cage.verts[v])
+            loop.append(vmap[v])
+        cage.faces.append(tuple(loop))
+        cage.colors.append(cage.colors[fi] if fi < len(cage.colors) else None)
+        new_faces.append(len(cage.faces) - 1)
+    for (a, b), sharp in list(cage.creases.items()):
+        if a in vmap and b in vmap:
+            cage.creases[(min(vmap[a], vmap[b]), max(vmap[a], vmap[b]))] = sharp
+    for v, sharp in list(cage.vcreases.items()):
+        if v in vmap:
+            cage.vcreases[vmap[v]] = sharp
+    return list(vmap.values()), new_faces

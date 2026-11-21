@@ -55,6 +55,7 @@ from core.history import Command
 from core.mesh import Mesh
 
 from .edit import Cage, ekey
+from . import modeling
 
 ACCENT = QColor(243, 115, 41)
 CAGE_LINE = QColor(243, 115, 41, 200)
@@ -293,7 +294,7 @@ class SubdPanel(QWidget):
                                     "the model's usual menu with the SubD tools inside."))
         lay.addWidget(self.menu_only)
         self.live_box = QCheckBox(T("Right-click tools: adjust with the mouse"))
-        self.live_box.setChecked(True)
+        self.live_box.setChecked(False)
         self.live_box.setToolTip(T("A tool chosen from the right-click menu follows the mouse: "
                                    "move to set the value and see the result, click to apply, "
                                    "Enter to type an exact value, Esc to cancel. Shift = finer, "
@@ -568,6 +569,8 @@ class SubdPanel(QWidget):
     def context_event(self, ev) -> bool:
         """Right-click on the SubD piece: our own menu, with only the SubD tools (the
         model's usual menu stays for everything else, or when this is switched off)."""
+        if __import__('time').monotonic() < self._no_menu_until:
+            return True                   # the right-click that just validated an adjustment
         if not self.menu_only.isChecked() or self.active_group() is None:
             return False
         x, y = float(ev.pos().x()), float(ev.pos().y())
@@ -623,8 +626,10 @@ class SubdPanel(QWidget):
             act = menu.addAction(_icon(spec.icon), T(spec.label) + ("…" if self._takes_input(key) else ""))
             act.setToolTip(self._tip(spec))
             act.triggered.connect(lambda _c=False, k=key: QTimer.singleShot(0, lambda: self._run_tool(k)))
-        if any(x and x[0] == "f" for x in sels):
+        if g is not None:
             menu.addSeparator()
+            menu.addAction(T("Select all faces"), self.select_all_faces)
+        if any(x and x[0] == "f" for x in sels):
             menu.addAction(T("Copy faces"), self.copy_faces)
         if self._clip:
             menu.addAction(T("Paste faces"), self.paste_faces)
@@ -735,10 +740,50 @@ class SubdPanel(QWidget):
             radius.setValue(self.soft_radius.value())
             row.addWidget(radius, 1)
             col.addLayout(row)
+        hint = QHBoxLayout()
+        hint.addWidget(QLabel(T("Enter applies, Esc cancels")), 1)
+        ok = QPushButton(T("Apply"))
+        ok.clicked.connect(dlg.accept)
+        hint.addWidget(ok)
+        col.addLayout(hint)
+        saved = (self.value.value(), src.currentIndex() if src is not None else None)
+
+        def preview(*_a):
+            """Show the result for what the box holds, while it is still open."""
+            sc = self._scale if spec.length else 1.0
+            self.value.blockSignals(True)
+            if box is not None:
+                self.value.setValue(box.value())
+            self.value.blockSignals(False)
+            if combo is not None:
+                src.blockSignals(True)
+                src.setCurrentIndex(combo.currentIndex())
+                src.blockSignals(False)
+            try:
+                _g, cg, _lv, _ln, _res = self._compute()
+                verts, faces = cg.smooth(1 if len(cg.faces) > 150 else 2)
+                self._box_ghost = (verts, {(min(f[i], f[(i + 1) % len(f)]), max(f[i], f[(i + 1) % len(f)]))
+                                           for f in faces for i in range(len(f))})
+            except ValueError:
+                self._box_ghost = None
+            self.app.viewport.update()
+        if box is not None:
+            box.valueChanged.connect(preview)
+        if combo is not None:
+            combo.currentIndexChanged.connect(preview)
+        QTimer.singleShot(0, preview)
         first = box or combo
         dlg.move(getattr(self, "_menu_pos", dlg.pos()))
         QTimer.singleShot(0, lambda: (first.setFocus(), box.selectAll() if box else None))
-        if dlg.exec() != QDialog.Accepted:
+        accepted = dlg.exec() == QDialog.Accepted
+        self._box_ghost = None
+        self.app.viewport.update()
+        if not accepted:
+            self.value.blockSignals(True)
+            self.value.setValue(saved[0])
+            self.value.blockSignals(False)
+            if src is not None and saved[1] is not None:
+                src.setCurrentIndex(saved[1])
             return False
         if box is not None:
             box.interpretText()
@@ -755,6 +800,8 @@ class SubdPanel(QWidget):
     LIVE_TOOLS = ("edit", "crease", "grow_face", "grow_edge", "stretch", "inset_face",
                   "offset_edge", "squeeze", "shell", "bevel", "slice", "slide", "merge")
     _live = None
+    _no_menu_until = 0.0
+    _box_ghost = None
 
     def _live_value(self, spec, v0: float, d_px: float, mods) -> float:
         """The value for a mouse travel of ``d_px`` pixels (right or up = more)."""
@@ -832,7 +879,9 @@ class SubdPanel(QWidget):
             self.app.viewport.setMouseTracking(live["track"])
         self.app.viewport.update()
 
-    def live_confirm(self) -> bool:
+    def live_confirm(self, right: bool = False) -> bool:
+        if right:
+            self._no_menu_until = __import__('time').monotonic() + 0.6
         live = self._live
         if live is None:
             return False
@@ -888,6 +937,8 @@ class SubdPanel(QWidget):
         return True
 
     def _draw_live(self, painter) -> None:
+        if self._box_ghost is not None:
+            self._draw_ghost(painter, self._box_ghost)
         live = self._live
         if live is None:
             return
@@ -922,6 +973,17 @@ class SubdPanel(QWidget):
 
     def _has_clip_focus(self) -> bool:
         return bool(self._clip_owner)
+
+    def select_all_faces(self) -> None:
+        g = self.active_group()
+        if g is None:
+            return
+        n = len(_state(g)[0].faces)
+        if n:
+            self.sel = ("f", 0)
+            self.extra = [("f", i) for i in range(1, n)]
+            self._say(T("All {n} faces selected: Ctrl + drag a move handle copies the piece", n=n))
+            self.app.viewport.update()
 
     def copy_faces(self) -> bool:
         g = self.active_group()
@@ -1815,13 +1877,47 @@ class SubdPanel(QWidget):
                                  QPointF(float(xs[b]), float(ys[b])))
 
     # ---- freestyle dragging ------------------------------------------------------
+    def _press_copy(self, ev) -> bool:
+        """Ctrl held on a move handle with faces selected: the drag carries a copy of
+        the faces (or of the whole piece when every face is selected)."""
+        vp = self.app.viewport
+        if getattr(getattr(vp, "active_tool", None), "name", "") != "Select":
+            return False
+        if ev.modifiers() & Qt.ShiftModifier or not self._has_face_sel():
+            return False
+        if self.handles.currentData() not in ("both", "move"):
+            return False
+        g = self.active_group()
+        if g is None or not self._grab_handle(g, ev.position()):
+            return False
+        d = self._drag
+        cage = _state(g)[0]
+        faces = sorted({x[1] for x in self._sels() if x and x[0] == "f" and x[1] < len(cage.faces)})
+        d["sym"] = None
+        if len(faces) == len(cage.faces):                       # the whole piece: a new group
+            d["newgroup"] = True
+            d["base"] = cage.copy()
+            d["vset"] = list(range(len(cage.verts)))
+            d["copy_faces"] = list(range(len(cage.faces)))
+        else:                                                   # some faces: copied in place
+            base = cage.copy()
+            newv, newf = modeling.duplicate_faces(base, faces)
+            d["copy"] = True
+            d["base"] = base
+            d["vset"] = newv
+            d["copy_faces"] = newf
+        self._say(T("Ctrl: dragging a copy"))
+        return True
+
     def mouse_press(self, ev) -> bool:
         """Press on a cage handle with the Select tool: select it and get
         ready to drag. Anything else is left to the viewport (returns False)."""
         vp = self.app.viewport
         mods = ev.modifiers()
-        if mods & (Qt.ControlModifier | Qt.AltModifier):
+        if mods & Qt.AltModifier:
             return False
+        if mods & Qt.ControlModifier:                  # Ctrl + a move handle: drag a copy
+            return self._press_copy(ev)
         shift = bool(mods & Qt.ShiftModifier)
         if getattr(getattr(vp, "active_tool", None), "name", "") != "Select":
             return False
@@ -2047,6 +2143,15 @@ class SubdPanel(QWidget):
         elif d["started"] and any(abs(c) > 1e-9 for c in d["delta"]):
             cage = d["base"].copy()
             subdiv_ops.symmetric_move(cage, d["vset"], d["delta"], d["sym"], self._soft())
+            if d.get("newgroup") or d.get("copy"):
+                self._commit(None if d.get("newgroup") else d["group"], cage,
+                             d["levels"], d["lines"])
+                faces = d["copy_faces"]
+                self.sel = ("f", faces[0])
+                self.extra = [("f", i) for i in faces[1:]]
+                self._say(T("Copy made: {n} faces", n=len(faces)))
+                vp.update()
+                return True
             self._commit(d["group"], cage, d["levels"], d["lines"])
             if d["hit"] is not None:
                 vp.set_extension_pick(d["hit"])       # keep it selected
@@ -2078,7 +2183,7 @@ class _DragFilter(QObject):
                 if t == QEvent.MouseMove:
                     return pn.live_move(ev)
                 if t == QEvent.MouseButtonPress:
-                    return pn.live_confirm() if ev.button() == Qt.LeftButton else pn.live_cancel()
+                    return pn.live_confirm(right=ev.button() == Qt.RightButton)
                 if t == QEvent.MouseButtonRelease:
                     return True
                 if t == QEvent.ContextMenu:

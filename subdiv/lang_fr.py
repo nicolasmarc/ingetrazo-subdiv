@@ -506,4 +506,14 @@ FR = {
         "Outils du clic droit : régler à la souris",
     "A tool chosen from the right-click menu follows the mouse: move to set the value and see the result, click to apply, Enter to type an exact value, Esc to cancel. Shift = finer, Ctrl = snap to steps. Untick to always get the value box.":
         "Un outil choisi dans le menu clic droit suit la souris : bouger pour régler la valeur et voir le résultat, cliquer pour appliquer, Entrée pour saisir une valeur exacte, Échap pour annuler. Maj = plus fin, Ctrl = par pas. Décocher pour toujours avoir la boîte de saisie.",
+    "Ctrl: dragging a copy":
+        "Ctrl : copie en cours de déplacement",
+    "Copy made: {n} faces":
+        "Copie faite : {n} faces",
+    "Enter applies, Esc cancels":
+        "Entrée applique, Échap annule",
+    "Select all faces":
+        "Tout sélectionner",
+    "All {n} faces selected: Ctrl + drag a move handle copies the piece":
+        "Les {n} faces sont sélectionnées : Ctrl + tirer une poignée de déplacement copie la pièce",
 }

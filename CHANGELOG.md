@@ -11,6 +11,8 @@
 - Ctrl+C / Ctrl+V (and menu entries) copy selected SubD faces and paste them as a new SubD piece.
 - Right-click on the SubD piece opens a menu of SubD tools only (switchable in "Smoothing, finish, handles"), with Smoothing 0 to 4 / Auto.
 - Live adjustment: a tool chosen from the right-click menu (Edit cage, Crease, Grow, Stretch, Offset, Squeeze, Shell, Bevel, Slice, Slide, Merge) follows the mouse with a live wireframe preview and the value shown at the cursor; click applies, Enter types an exact value, Esc cancels, Shift = finer, Ctrl = snap, X/Y/Z set the direction.
+- Ctrl + drag a move handle copies the selected faces (in place), or the whole piece as a new SubD group when every face is selected (right-click: Select all faces).
+- The value box shows a live wireframe preview while you type, with an Apply button; the mouse-following mode is now optional and a right-click validates it.
 - Move / rotate handles are drawn (and usable) with the cage hidden.
 
 - **Eight new tools**: Revolve, Bevel, Loft, Sweep, Slice, Merge, Dissolve and Slide

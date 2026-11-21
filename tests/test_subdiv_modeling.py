@@ -498,3 +498,15 @@ def test_revolve_from_plain_lines_and_face():
     c2 = Cage()
     res = ops.revolve_loose(c2, [], [[(1, 0, 0), (2, 0, 0), (2, 0, 1), (1, 0, 1)]], [], 8, "z")
     assert len(c2.faces) == 32 and c2.is_consistent()
+
+
+def test_duplicate_faces_is_detached_and_keeps_creases():
+    c = Cage.box((1, 1, 1))
+    top = max(range(len(c.faces)), key=lambda i: c.face_centroid(i)[2])
+    edge = (c.faces[top][0], c.faces[top][1])
+    c.set_crease([edge], 2.0)
+    n_v, n_f = len(c.verts), len(c.faces)
+    nv, nf = modeling.duplicate_faces(c, [top])
+    assert len(c.verts) == n_v + 4 and len(c.faces) == n_f + 1
+    assert set(nv).isdisjoint(c.faces[top]) and len(nf) == 1
+    assert len([k for k, s in c.creases.items() if s > 0 and k[0] in nv]) == 1
