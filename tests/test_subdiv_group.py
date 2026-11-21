@@ -127,7 +127,7 @@ def test_auto_levels_follows_the_budget():
     assert subdiv_group.auto_levels(box, budget=500) == 2      # 192 fits, 768 does not
     assert subdiv_group.auto_levels(box, budget=10) == 0
     big = Cage([(0, 0, 0)] * 4, [(0, 1, 2, 3)] * 200)
-    assert subdiv_group.auto_levels(big) == 2                  # level 3 would be 25 600
+    assert subdiv_group.auto_levels(big) == 1                  # level 2 would be 6 400
 
 
 # ---- converting meshes that did not come from the plugin ------------------------------------

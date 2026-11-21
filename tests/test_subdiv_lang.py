@@ -81,7 +81,7 @@ def test_texts_used_by_the_code_are_all_translated():
     import pathlib
     root = pathlib.Path(lang.__file__).parent
     missing = set()
-    for f in ("panel.py", "ops.py", "edit.py", "group.py"):
+    for f in ("panel.py", "ops.py", "edit.py", "group.py", "modeling.py"):
         tree = ast.parse((root / f).read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if (isinstance(node, ast.Call) and getattr(node.func, "id", "") in ("T", "_T")

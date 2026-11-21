@@ -175,6 +175,53 @@ def _flat_regions(det, colors=None) -> list:
     return out
 
 
+def _wipe(mesh) -> None:
+    """Empty a mesh again after a failed fast fill (it was new, so nothing is lost)."""
+    for name in ("faces", "edges", "vertices"):
+        seq = getattr(mesh, name, None)
+        if hasattr(seq, "clear"):
+            seq.clear()
+    for name in ("_vertex_cells", "_cells", "_registry", "_grid"):
+        reg = getattr(mesh, name, None)
+        if hasattr(reg, "clear"):
+            reg.clear()
+
+
+def _fill_bulk(mesh, bulk, det, cage, regions, flat, quad_of, tri_of, poly_of) -> list:
+    """The same faces as the one-by-one fill, made by the host's vectorised builder
+    (welding, edges and faces in a few array passes): several times faster."""
+    import numpy as np
+    verts = np.asarray(det.verts, dtype=float).reshape(-1, 3)
+    loops, attrs, kinds = [], [], []
+    for srcs, loop in regions:
+        color = cage.colors[srcs[0]]
+        loops.append(tuple(loop))
+        attrs.append({"color": tuple(color)} if color is not None else None)
+        kinds.append((None, tuple(loop)))
+    for qi, f in enumerate(det.faces):
+        if det.source[qi] in flat:
+            continue
+        color = cage.colors[det.source[qi]]
+        for i in range(1, len(f) - 1):
+            tri = (f[0], f[i], f[i + 1])
+            loops.append(tri)
+            attrs.append({"color": tuple(color)} if color is not None else None)
+            kinds.append((qi, tri))
+    if not loops:
+        return []
+    sizes = np.fromiter((len(l) for l in loops), dtype=np.int64, count=len(loops))
+    idx = np.fromiter((k for l in loops for k in l), dtype=np.int64, count=int(sizes.sum()))
+    faces = bulk(verts[idx], sizes, np.ones(len(loops), dtype=np.int64), attrs)
+    if len(faces) != len(loops):
+        raise RuntimeError("bulk fill returned another number of faces")
+    for face, (qi, ids) in zip(faces, kinds):
+        if qi is None:
+            poly_of[face] = ids
+        else:
+            quad_of[face], tri_of[face] = qi, ids
+    return list(faces)
+
+
 def fill_mesh(mesh, cage: Cage, levels: int, vec3, lines: str = "cage",
               merge_flat: bool = False) -> list:
     """Add the smoothed cage to ``mesh`` as triangles. Returns the faces added.
@@ -187,24 +234,35 @@ def fill_mesh(mesh, cage: Cage, levels: int, vec3, lines: str = "cage",
     added, quad_of, tri_of, poly_of = [], {}, {}, {}
     regions = _flat_regions(det, cage.colors) if merge_flat else []
     flat = {src for srcs, _ in regions for src in srcs}
-    for srcs, loop in regions:
-        color = cage.colors[srcs[0]]
-        face = mesh.add_face([vec3(*det.verts[k]) for k in loop])
-        if color is not None:
-            face.attrs["color"] = tuple(color)
-        added.append(face)
-        poly_of[face] = loop
-    for qi, f in enumerate(det.faces):             # quads are not planar:
-        if det.source[qi] in flat:
-            continue
-        color = cage.colors[det.source[qi]]
-        for i in range(1, len(f) - 1):             # fan-triangulate each face
-            tri = (f[0], f[i], f[i + 1])
-            face = mesh.add_face([vec3(*det.verts[k]) for k in tri])
+    fresh = not getattr(mesh, "faces", None)
+    bulk = getattr(mesh, "add_faces_bulk", None) if fresh else None
+    if bulk is not None:
+        try:
+            added = _fill_bulk(mesh, bulk, det, cage, regions, flat, quad_of, tri_of, poly_of)
+        except Exception:                                    # noqa: BLE001
+            bulk = None
+            _wipe(mesh)
+            quad_of.clear(), tri_of.clear(), poly_of.clear()
+    if bulk is None:
+        added = []
+        for srcs, loop in regions:
+            color = cage.colors[srcs[0]]
+            face = mesh.add_face([vec3(*det.verts[k]) for k in loop])
             if color is not None:
                 face.attrs["color"] = tuple(color)
             added.append(face)
-            quad_of[face], tri_of[face] = qi, tri
+            poly_of[face] = loop
+        for qi, f in enumerate(det.faces):             # quads are not planar:
+            if det.source[qi] in flat:
+                continue
+            color = cage.colors[det.source[qi]]
+            for i in range(1, len(f) - 1):             # fan-triangulate each face
+                tri = (f[0], f[i], f[i + 1])
+                face = mesh.add_face([vec3(*det.verts[k]) for k in tri])
+                if color is not None:
+                    face.attrs["color"] = tuple(color)
+                added.append(face)
+                quad_of[face], tri_of[face] = qi, tri
 
     vindex = {}                                     # mesh vertex -> output index
     for face, ids in list(tri_of.items()) + list(poly_of.items()):
@@ -281,7 +339,7 @@ def triangle_count(cage: Cage, levels: int) -> int:
     return 2 * quads
 
 
-def auto_levels(cage: Cage, budget: int = 25000, max_level: int = 4) -> int:
+def auto_levels(cage: Cage, budget: int = 4000, max_level: int = 4) -> int:
     """The smoothest level (0..max_level) whose surface stays within ``budget``
     triangles — dense where the cage is simple, lighter where it is big."""
     best = 0

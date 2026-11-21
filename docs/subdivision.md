@@ -13,7 +13,7 @@ live in pure-Python modules that are tested without a window.
    when the *Crease edges over* angle, 30 by default, is below 90).
 2. With the **Select** tool, click a point, an edge or a face of the cage.
 3. **Drag** it to move it freely (the axis box next to the value constrains
-   the drag; `Esc` cancels), or pick one of the fourteen tools, set its value
+   the drag; `Esc` cancels), or pick one of the twenty-two tools, set its value
    and press **Apply**.
 
 Every step is one undo step; undo puts the previous surface back.
@@ -22,7 +22,7 @@ Every step is one undo step; undo puts the previous surface back.
 |------|-------|--------------|
 | Create | – | New box cage (size in metres), with its lower corner on the origin |
 | Edit cage | point, edge or face | Move it along an axis |
-| Crease | edge or face | Keep edges sharp for N subdivision levels (0 clears) |
+| Crease | point, edge or face | Keep edges sharp for N subdivision levels (0 clears). A fraction (1.5, 0.5) gives a softer edge; a selected point becomes a corner of that sharpness |
 | Grow F | face | Push the face out along its normal |
 | Grow E | open edge | Extend an open edge into a new strip; with the whole contour selected (click an edge again) it goes outwards; with X, Y or Z chosen, the whole open contour is extruded along that axis |
 | Stretch | point, edge or face | Scale the selection along an axis. A face stretched along its own normal (Auto) stretches the whole piece that way, the far side staying put |
@@ -34,8 +34,22 @@ Every step is one undo step; undo puts the previous surface back.
 | Close | open edge | Fill the open border with a face |
 | Shell | none (whole piece) + Inside / Outside / Centred | Give the piece a wall of the chosen thickness: an open piece becomes a thick sheet, a closed one a hollow body. The lip stays crisp. |
 | Bridge (Twist) | a face (or an open edge), then another: click one, then click the other: the bridge is made at the second click (Shift+click then Apply, or Apply after each, also work) | Remove the two faces and join their openings with a ring of quads (both need the same number of sides) |
+| Revolve (Segments) | a face (the profile) + X, Y or Z | Turn the profile round that axis through the origin into a body of revolution; points on the axis become poles. The profile is used up when it is the whole cage, kept otherwise |
+| Bevel (Width) | an edge, or the edges of a loop (click an edge again for its loop) | Replace the edge by a narrow strip (a chamfer); a small face closes any corner where beveled edges meet. Only for edges inside the surface |
+| Loft (Segments) | two or more faces: click one, Shift+click the others, in order | Pass a new surface through them. Rings with fewer points get extra ones, each ring is lined up with the one before, and *Closed ends* / *Open ends* chooses the caps. With three or more sections the rings between follow a smooth curve |
+| Sweep (Twist) | one face (the profile) + the edges of a path | Carry the profile along the path (one chain of edges, open or closed), turned to follow it with the least twist and mitred at bends |
+| Slice (Offset) | any item (optional) + X, Y or Z | Cut the cage with a plane through the item (or the middle of the piece), moved by the offset; faces must be convex where cut |
+| Merge (Distance) | an edge, a face or a point | Edge: merge its two ends at the middle. Face: merge all its points into one. Point: merge every point within the distance into it |
+| Dissolve | an edge or a point | Remove the edge (its two faces become one) or the point (the faces around it become one) |
+| Slide | an edge of a loop (or the loop picked with repeated clicks) | Slide the whole loop sideways by a fraction of the way to its neighbour (negative goes the other way); use it to move a Divide cut |
 
-Lengths (Create, Edit cage, Grow F, Grow E) are typed and shown in the
+**Selecting**: click an edge again to step through *Edge*, *Loop*, *Ring* (the parallel edges the loop cut would cross) and the outline of each face it touches.
+
+**Pick on the skin**: tick it under *Show cage* and click the smooth surface directly. The cage point, edge or face that shapes the spot is selected: a point if you click near where a cage point lies on the surface, an edge near its curve on the surface, otherwise the face. It works with the cage hidden (the selection is then drawn on the skin) and with every tool; dragging moves the cage points behind it.
+
+**Soft selection**: tick *Soft* next to the symmetry controls and give a radius (in the document's unit). Dragging a point, edge or face, or Edit cage, also drags the points around it, fading smoothly to nothing at the radius. It works with symmetry.
+
+Lengths (Create, Edit cage, Grow F, Grow E, Bevel, Slice, Merge) are typed and shown in the
 document's unit (mm, cm, m, in, ft); the model itself is metres.
 
 **Smoothing** sets the number of Catmull-Clark steps (0 is the cage itself;
@@ -92,7 +106,8 @@ layer, BIM tag, visibility and paint.
 
 | File | Role |
 |------|------|
-| `subdiv/subdivide.py` | Catmull-Clark step, semi-sharp creases, edge/face lineage |
+| `subdiv/subdivide.py` | Catmull-Clark step (NumPy, with a plain-Python reference kept for tests), fractional and corner creases, edge/face lineage |
+| `subdiv/modeling.py` | Revolve, Bevel, Slice, Merge, Dissolve, Slide, Loft, Sweep on a `Cage` |
 | `subdiv/edit.py` | `Cage`: the editing operations, orientation, serialisation |
 | `subdiv/ops.py` | The tools as functions, selection rules, picking, drag maths |
 | `subdiv/group.py` | Cage in a group, mesh to cage, undoable swap/join/settings, follow cache |

@@ -32,14 +32,14 @@ def _border_edge(c):
     return ("e", loop[0], loop[1])
 
 
-def test_thirteen_tools_with_distinct_icons():
-    assert len(TOOL_SPECS) == 14
-    assert len({s.icon for s in TOOL_SPECS}) == 14 and len({s.key for s in TOOL_SPECS}) == 14
+def test_twenty_two_tools_with_distinct_icons():
+    assert len(TOOL_SPECS) == 22
+    assert len({s.icon for s in TOOL_SPECS}) == 22 and len({s.key for s in TOOL_SPECS}) == 22
 
 
 def test_length_tools_are_flagged_and_labels_carry_no_unit():
     lengths = {s.key for s in TOOL_SPECS if s.length}
-    assert lengths == {"create", "edit", "grow_face", "grow_edge", "shell"}
+    assert lengths == {"create", "edit", "grow_face", "grow_edge", "shell", "bevel", "slice", "merge"}
     assert all("(m)" not in s.value_label for s in TOOL_SPECS)
 
 
@@ -624,14 +624,15 @@ def test_edge_contours_steps_edge_loop_then_each_face_outline_without_repeats():
     c = _box()                                     # a cube: no loop, two faces meet at an edge
     a, b = next(iter(c.edge_faces()))
     st = edge_contours(c, a, b)
-    assert [n for n, _e in st] == ["Edge", "Face outline", "Face outline"]
-    assert len(st[1][1]) == 4 and len(st[2][1]) == 4
-    assert ekey(a, b) in {ekey(*e) for e in st[1][1]} & {ekey(*e) for e in st[2][1]}
+    assert [n for n, _e in st] == ["Edge", "Ring", "Face outline", "Face outline"]
+    assert len(st[1][1]) == 4                       # the ring: the four parallel edges
+    assert len(st[2][1]) == 4 and len(st[3][1]) == 4
+    assert ekey(a, b) in {ekey(*e) for e in st[2][1]} & {ekey(*e) for e in st[3][1]}
     g = _grid(2)                                   # the sheet: the loop comes second
     st = edge_contours(g, 3, 4)
     assert [n for n, _e in st][:2] == ["Edge", "Loop"] and len(st[1][1]) == 2
     st = edge_contours(g, 0, 1)                    # a border edge has one face
-    assert [n for n, _e in st] == ["Edge", "Loop", "Face outline"]
+    assert [n for n, _e in st if n != "Ring"] == ["Edge", "Loop", "Face outline"]
 
 
 def test_shell_keeps_full_thickness_on_box_edges_even_with_extra_points():
@@ -688,8 +689,12 @@ def test_crease_items_rounds_off_or_sharpens_a_whole_selection():
     assert len(c.creases) == 9
     crease_items(c, [("f", 0)], 2.0)                       # a face: its four edges
     assert sum(1 for s in c.creases.values() if s == 2.0) == 4
+    res = crease_items(c, [("v", 0)], 1.5)                 # points alone: corner creases
+    assert c.vcreases == {0: 1.5} and "corner" in res.message
+    crease_items(c, [("v", 0)], 0.0)
+    assert c.vcreases == {}
     with pytest.raises(ValueError):
-        crease_items(c, [("v", 0)], 1.0)
+        crease_items(c, [], 1.0)
 
 
 def test_growing_a_sharp_face_gives_a_rectilinear_extrusion():
