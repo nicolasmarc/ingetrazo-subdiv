@@ -1602,32 +1602,79 @@ class SubdPanel(QWidget):
         a face as its patch)."""
         cage = _state(g)[0]
         sels = [x for x in self._sels() if subdiv_ops.valid(cage, x)]
-        if not sels:
+        self._draw_skin_items(painter, g, sels, QColor(243, 115, 41, 70),
+                              QColor(255, 255, 255), QColor(255, 255, 255))
+
+    def _draw_skin_items(self, painter, g, items, fill, line, dot, width=3.4, radius=5.5) -> None:
+        cage = _state(g)[0]
+        if not items:
             return
         skin = self._skin_of(g)
         xs, ys, front = self.app.world_to_pixels(skin.verts)
         pt = [QPointF(float(x), float(y)) for x, y in zip(xs, ys)]
-        for sel in sels:
+        for sel in items:
+            if not subdiv_ops.valid(cage, sel):
+                continue
             if sel[0] == "f":
                 painter.setPen(Qt.NoPen)
-                painter.setBrush(QBrush(QColor(243, 115, 41, 70)))
+                painter.setBrush(QBrush(fill))
                 for t in np.nonzero(skin.tri_face == sel[1])[0]:
                     tri = skin.tris[t]
                     if all(front[int(k)] for k in tri):
                         painter.drawPolygon(QPolygonF([pt[int(k)] for k in tri]))
             elif sel[0] == "e":
                 chain = skin.curves.get(ekey(sel[1], sel[2]), [])
-                painter.setPen(QPen(QColor(255, 255, 255), 3.4))
+                painter.setPen(QPen(line, width))
                 painter.setBrush(Qt.NoBrush)
                 painter.drawPolyline(QPolygonF([pt[k] for k in chain if front[k]]))
             else:
                 if front[sel[1]]:
                     painter.setPen(Qt.NoPen)
-                    painter.setBrush(QBrush(QColor(255, 255, 255)))
-                    painter.drawEllipse(pt[sel[1]], 5.5, 5.5)
+                    painter.setBrush(QBrush(dot))
+                    painter.drawEllipse(pt[sel[1]], radius, radius)
+
+    # ---- what a click would select: the item under the cursor lights up ---------------------
+    _hover = None
+    _hover_t = 0.0
+
+    def hover_move(self, ev) -> bool:
+        """A mouse move with no button down: find what a click here would select."""
+        import time
+        vp = self.app.viewport
+        now = time.monotonic()
+        if now - self._hover_t < 0.03:
+            return False
+        self._hover_t = now
+        item = None
+        if (self._drag is None and self._live is None
+                and getattr(getattr(vp, "active_tool", None), "name", "") == "Select"
+                and self.active_group() is not None
+                and (self.skin_pick.isChecked() or self.show_cage.isChecked())
+                and not (ev.buttons() or ev.modifiers() & (Qt.ControlModifier | Qt.AltModifier))):
+            try:
+                item = self.pick_item(None, ev.position().x(), ev.position().y())
+            except Exception:                                    # noqa: BLE001
+                item = None
+        if item != self._hover:
+            self._hover = item
+            vp.update()
+        return False
+
+    def clear_hover(self) -> None:
+        if self._hover is not None:
+            self._hover = None
+            self.app.viewport.update()
+
+    def _draw_hover(self, painter) -> None:
+        g = self.active_group()
+        if self._hover is None or g is None or self._drag is not None or self._live is not None:
+            return
+        self._draw_skin_items(painter, g, [self._hover], QColor(40, 130, 255, 100),
+                              QColor(40, 130, 255), QColor(40, 130, 255), 4.5, 6.5)
 
     def draw(self, viewport, painter) -> None:
         self._draw_live(painter)
+        self._draw_hover(painter)
         if not self.show_cage.isChecked():
             g0 = self.active_group()
             if g0 is not None and self.skin_pick.isChecked():
@@ -2207,9 +2254,14 @@ class _DragFilter(QObject):
                         return True
             if t == QEvent.MouseButtonPress and ev.button() == Qt.LeftButton:
                 return bool(self.panel.mouse_press(ev))
+            if t == QEvent.Leave:
+                self.panel.clear_hover()
             if t == QEvent.ContextMenu:
+                self.panel.clear_hover()
                 return bool(self.panel.context_event(ev))
             if t == QEvent.MouseMove:
+                if not ev.buttons():
+                    self.panel.hover_move(ev)
                 return bool(self.panel.mouse_move(ev))
             if t == QEvent.MouseButtonRelease and ev.button() == Qt.LeftButton:
                 return bool(self.panel.mouse_release(ev))
@@ -2269,5 +2321,6 @@ def setup(app) -> None:
     panel.axis.currentIndexChanged.connect(lambda _i: app.viewport.update())
     panel._filter = _DragFilter(panel)                 # freestyle dragging
     app.viewport.installEventFilter(panel._filter)
+    app.viewport.setMouseTracking(True)           # so the item under the cursor can light up
     app.add_menu_action(T("SubD panel"), lambda: app.show_panel(dock), None,
                         tip=T("Show the subdivision-modelling panel."))

@@ -899,16 +899,20 @@ def pick_skin(cage: Cage, skin: Skin, xs, ys, front, px: float, py: float, ray,
     for i, a in enumerate(face):
         b = face[(i + 1) % len(face)]
         near.update(ef.get(ekey(a, b), ()))
-    best, best_d = None, tol
+    # How close is "on" a point or an edge depends on how big the face looks: on a
+    # small face the zones shrink, so a click inside it still means the face.
+    lens = [math.hypot(xs[face[i]] - xs[face[(i + 1) % len(face)]],
+                       ys[face[i]] - ys[face[(i + 1) % len(face)]]) for i in range(len(face))]
+    size = min(lens) if lens else tol
+    tol_v = min(tol, max(4.0, 0.28 * size))
+    tol_e = min(tol * 0.85, max(3.5, 0.2 * size))
+    best, best_score = None, 1.0
     for fj in near:
         for v in cage.faces[fj]:
             if front[v]:
-                d = math.hypot(xs[v] - px, ys[v] - py)
-                if d <= best_d:
-                    best, best_d = ("v", v), d
-    if best:
-        return best
-    best_d = tol
+                score = (0.85 if fj != fi else 0.82) * math.hypot(xs[v] - px, ys[v] - py) / tol_v
+                if score < best_score:
+                    best, best_score = ("v", v), score
     for fj in near:
         g = cage.faces[fj]
         for i, a in enumerate(g):
@@ -917,9 +921,9 @@ def pick_skin(cage: Cage, skin: Skin, xs, ys, front, px: float, py: float, ray,
             if not chain:
                 continue
             for p, q in zip(chain, chain[1:]):
-                d = _seg_dist(px, py, xs[p], ys[p], xs[q], ys[q])
-                if d <= best_d:
-                    best, best_d = ("e",) + ekey(a, b), d
+                score = (1.0 if fj != fi else 0.95) * _seg_dist(px, py, xs[p], ys[p], xs[q], ys[q]) / tol_e
+                if score < best_score:
+                    best, best_score = ("e",) + ekey(a, b), score
     return best or ("f", fi)
 
 

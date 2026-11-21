@@ -13,6 +13,7 @@
 - Live adjustment: a tool chosen from the right-click menu (Edit cage, Crease, Grow, Stretch, Offset, Squeeze, Shell, Bevel, Slice, Slide, Merge) follows the mouse with a live wireframe preview and the value shown at the cursor; click applies, Enter types an exact value, Esc cancels, Shift = finer, Ctrl = snap, X/Y/Z set the direction.
 - Ctrl + drag a move handle copies the selected faces (in place), or the whole piece as a new SubD group when every face is selected (right-click: Select all faces).
 - The value box shows a live wireframe preview while you type, with an Apply button; the mouse-following mode is now optional and a right-click validates it.
+- Picking on the skin is steadier: the item under the cursor lights up in blue before you click, and the point / edge / face zones scale with the size of the face on screen.
 - Move / rotate handles are drawn (and usable) with the cage hidden.
 
 - **Eight new tools**: Revolve, Bevel, Loft, Sweep, Slice, Merge, Dissolve and Slide

@@ -393,15 +393,22 @@ def test_fractional_edge_crease_sits_between_smooth_and_sharp_in_a_cage():
 
 
 # ---- picking on the smooth skin -----------------------------------------------------------
+def _proj(p):
+    """The pretend camera: orthographic, looking down -X, tilted a little so that
+    the near and far sides of the piece do not overlap on screen."""
+    return (p[1] + 0.2 * p[0]) * 100, (p[2] + 0.1 * p[0]) * 100
+
+
 def _view_from_plus_x(cage, levels):
-    """A pretend orthographic camera looking down -X: screen = (y, z) * 100."""
     skin = ops.build_skin(cage, levels)
-    xs, ys = (skin.verts[:, 1] * 100).tolist(), (skin.verts[:, 2] * 100).tolist()
+    xs = [_proj(p)[0] for p in skin.verts]
+    ys = [_proj(p)[1] for p in skin.verts]
     front = [True] * len(xs)
 
-    def pick(y, z, tol=9.0, skip=()):
-        return ops.pick_skin(cage, skin, xs, ys, front, y * 100, z * 100,
-                             ((10.0, y, z), (-1.0, 0.0, 0.0)), tol, skip)
+    def pick(u, w, tol=9.0, skip=()):
+        """(u, w) in screen units of 100 pixels."""
+        return ops.pick_skin(cage, skin, xs, ys, front, u * 100, w * 100,
+                             ((10.0, u - 2.0, w - 1.0), (-1.0, 0.2, 0.1)), tol, skip)
     return skin, pick
 
 
@@ -419,10 +426,12 @@ def test_clicking_the_skin_picks_the_face_the_edge_or_the_point_behind_it():
     got = pick(0.0, 0.0)
     assert got[0] == "f" and all(c.verts[v][0] > 0 for v in c.faces[got[1]])   # the +X face
     corner = skin.verts[1]                                    # skin point of a +X corner
-    assert pick(corner[1] + 0.01, corner[2] + 0.01) == ("v", 1)
+    cu, cw = _proj(corner)
+    assert pick(cu / 100 + 0.01, cw / 100 + 0.01) == ("v", 1)
     e = next(k for k in c.edges() if all(c.verts[v][0] > 0 for v in k))
     mid = skin.verts[skin.curves[e][2]]
-    got = pick(mid[1], mid[2])
+    mu, mw = _proj(mid)
+    got = pick(mu / 100, mw / 100)
     assert got[0] == "e" and ekey(got[1], got[2]) == ekey(*e)
 
 
