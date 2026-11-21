@@ -519,3 +519,28 @@ def test_duplicate_faces_is_detached_and_keeps_creases():
     assert len(c.verts) == n_v + 4 and len(c.faces) == n_f + 1
     assert set(nv).isdisjoint(c.faces[top]) and len(nf) == 1
     assert len([k for k, s in c.creases.items() if s > 0 and k[0] in nv]) == 1
+
+
+def test_loft_grows_out_of_cage_faces_and_stays_one_closed_piece():
+    from subdiv import ops
+    c = Cage.box((1, 1, 1), center=(0, 0, 0.5))
+    top = max(range(len(c.faces)), key=lambda i: c.face_centroid(i)[2])
+    nv, nf = modeling.duplicate_faces(c, [top])
+    c.move(nv, (0, 0, 2.0))
+    nv2, nf2 = modeling.duplicate_faces(c, [top])
+    c.move(nv2, (0, 0, 4.0))
+    sels = [("f", top), ("f", nf[0]), ("f", nf2[0])]
+    res = ops.loft_items(c, sels, 1, "closed")
+    assert c.is_consistent() and c.is_closed()
+    assert len(c.faces) == 5 + 8 + 1          # the box lost its top, the end copy is the cap
+
+
+def test_loft_with_open_ends_leaves_the_far_end_open():
+    from subdiv import ops
+    c = Cage.box((1, 1, 1), center=(0, 0, 0.5))
+    top = max(range(len(c.faces)), key=lambda i: c.face_centroid(i)[2])
+    nv, nf = modeling.duplicate_faces(c, [top])
+    c.move(nv, (0, 0, 2.0))
+    ops.loft_items(c, [("f", top), ("f", nf[0])], 2, "open")
+    assert c.is_consistent() and not c.is_closed()
+    assert len(c.faces) == 5 + 8

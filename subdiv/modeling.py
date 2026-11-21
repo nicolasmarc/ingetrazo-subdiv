@@ -680,10 +680,23 @@ def _catmull(p0, p1, p2, p3, u):
                         + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * u3) for k in range(3))
 
 
-def _make_surface(cage: Cage, rings, closed_ends: bool, closed_path: bool = False) -> int:
+def _key(p):
+    return (round(p[0], 9), round(p[1], 9), round(p[2], 9))
+
+
+def _make_surface(cage: Cage, rings, closed_ends: bool, closed_path: bool = False,
+                  reuse=None, caps=None) -> int:
     """Quads between consecutive rings (lists of points, equal size), new points
-    added to the cage; optional caps. Returns the number of faces added."""
-    ids = [[cage._new_vert(p) for p in r] for r in rings]
+    added to the cage (``reuse`` maps a position to an existing point to use
+    instead, so the surface is welded to it); optional caps (``caps`` = start, end).
+    Returns the number of faces added."""
+    def vid(p):
+        if reuse:
+            i = reuse.get(_key(p))
+            if i is not None:
+                return i
+        return cage._new_vert(p)
+    ids = [[vid(p) for p in r] for r in rings]
     n = len(rings[0])
     added = 0
     last = len(ids) if closed_path else len(ids) - 1
@@ -694,16 +707,18 @@ def _make_surface(cage: Cage, rings, closed_ends: bool, closed_path: bool = Fals
             cage.faces.append((a[j], a[j2], b[j2], b[j]))
             cage.colors.append(None)
             added += 1
-    if closed_ends and not closed_path:
-        for r in (ids[0], ids[-1]):
-            cage.faces.append(tuple(r))
-            cage.colors.append(None)
-            added += 1
+    if not closed_path:
+        cs, ce = caps if caps is not None else (closed_ends, closed_ends)
+        for r, on in ((ids[0], cs), (ids[-1], ce)):
+            if on:
+                cage.faces.append(tuple(r))
+                cage.colors.append(None)
+                added += 1
     return added
 
 
 def loft(cage: Cage, sections: Sequence[Sequence[int]], segments: int = 1,
-         closed_ends: bool = True, twist: int = 0) -> int:
+         closed_ends: bool = True, twist: int = 0, faces=None) -> int:
     """A new surface through several closed sections, in the order given:
     ``sections`` are loops of points (a face's corners, or a closed edge loop).
     Rings with fewer points get extra ones, each ring is lined up with the one
@@ -742,7 +757,26 @@ def loft(cage: Cage, sections: Sequence[Sequence[int]], segments: int = 1,
                                  rp[j] if rp else _sub(_mul(r1[j], 2), r0[j]), u)
                         for j in range(m)])
         full.append(rings[-1])
-        added = _make_surface(cage, full, closed_ends)
+        reuse, caps, drop = None, None, []
+        if faces is not None and any(f is not None for f in faces):
+            reuse = {}
+            ef = cage.edge_faces()
+            last = len(sections) - 1
+            for i, f in enumerate(faces):
+                if f is None:
+                    continue
+                loop = cage.faces[f]
+                for v in loop:
+                    reuse[_key(cage.verts[v])] = v
+                attached = any(len(ef.get(ekey(loop[q], loop[(q + 1) % len(loop)]), ())) > 1
+                               for q in range(len(loop)))
+                if i not in (0, last) or attached or not closed_ends:
+                    drop.append(f)
+            caps = (closed_ends and faces[0] is None, closed_ends and faces[-1] is None)
+        added = _make_surface(cage, full, closed_ends, reuse=reuse, caps=caps)
+        if drop:
+            cage.remove_faces(drop)
+            added -= 0
         cage.orient()
         return added
     except Exception:

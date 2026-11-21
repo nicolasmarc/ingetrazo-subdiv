@@ -516,10 +516,11 @@ def bevel_items(cage, sels, value, axis="auto") -> Result:
 def _sections(cage, sels):
     """The closed sections picked: each selected face, and each closed loop
     of selected edges."""
-    out = []
+    out, faces = [], []
     for x in sels:
         if x and x[0] == "f":
             out.append(list(cage.faces[x[1]]))
+            faces.append(x[1])
     edges = [(x[1], x[2]) for x in sels if x and x[0] == "e"]
     if edges:
         left = [ekey(a, b) for a, b in edges]
@@ -541,14 +542,16 @@ def _sections(cage, sels):
             if not closed:
                 raise ValueError(_T("An edge section must be a closed loop"))
             out.append(pts)
-    return out
+            faces.append(None)
+    return out, faces
 
 
 def loft_items(cage, sels, value, axis="closed") -> Result:
-    sections = _sections(cage, sels)
+    sections, faces = _sections(cage, sels)
     if len(sections) < 2:
         raise ValueError(_T("Loft: select two or more faces (click one, Shift+click the others)"))
-    n = modeling.loft(cage, sections, int(round(value)), closed_ends=axis != "open")
+    sections, faces = _order_both(cage, sections, faces)
+    n = modeling.loft(cage, sections, int(round(value)), closed_ends=axis != "open", faces=faces)
     return Result(None, _T('Lofted through {k} sections: {n} faces added', k=len(sections), n=n))
 
 
@@ -581,17 +584,18 @@ def _weld_points(cage: Cage, pts, tol: float = 1e-6) -> list[int]:
     return out
 
 
-def _order_sections(cage: Cage, sections):
-    """Sections in the order they lie along the piece: from one end, always to
-    the nearest one left (a selection has no click order to follow)."""
-    if len(sections) < 3:
-        return list(sections)
+def _section_order(cage: Cage, sections) -> list[int]:
+    """The order the sections lie along the piece: from one end, always to the
+    nearest one left (a selection has no click order to follow)."""
+    n = len(sections)
+    if n < 3:
+        return list(range(n))
     cen = []
-    for s in sections:
-        pts = [cage.verts[v] for v in s]
+    for sec in sections:
+        pts = [cage.verts[v] for v in sec]
         cen.append(tuple(sum(p[k] for p in pts) / len(pts) for k in range(3)))
-    mid = tuple(sum(c[k] for c in cen) / len(cen) for k in range(3))
-    left = list(range(len(sections)))
+    mid = tuple(sum(c[k] for c in cen) / n for k in range(3))
+    left = list(range(n))
     cur = max(left, key=lambda i: math.dist(cen[i], mid))
     order = [cur]
     left.remove(cur)
@@ -599,17 +603,26 @@ def _order_sections(cage: Cage, sections):
         cur = min(left, key=lambda i: math.dist(cen[i], cen[order[-1]]))
         order.append(cur)
         left.remove(cur)
-    return [sections[i] for i in order]
+    return order
+
+
+def _order_both(cage: Cage, sections, faces):
+    """Sections (and their cage faces) in the order they lie along the piece."""
+    idx = _section_order(cage, sections)
+    return [sections[i] for i in idx], [faces[i] for i in idx]
 
 
 def loft_loose(cage: Cage, sels, loops, value, axis="closed") -> Result:
     """Loft through the selected cage faces and plain faces (``loops`` of xyz)."""
-    sections = [list(cage.faces[x[1]]) for x in sels if x and x[0] == "f"]
+    fidx = [x[1] for x in sels if x and x[0] == "f"]
+    sections = [list(cage.faces[f]) for f in fidx]
+    faces = list(fidx)
     sections += [_weld_points(cage, lp) for lp in loops]
+    faces += [None] * len(loops)
     if len(sections) < 2:
         raise ValueError(_T("Loft: select two or more faces (click one, Shift+click the others)"))
-    sections = _order_sections(cage, sections)
-    n = modeling.loft(cage, sections, int(round(value)), closed_ends=axis != "open")
+    sections, faces = _order_both(cage, sections, faces)
+    n = modeling.loft(cage, sections, int(round(value)), closed_ends=axis != "open", faces=faces)
     cage.prune()
     return Result(None, _T('Lofted through {k} sections: {n} faces added', k=len(sections), n=n))
 

@@ -674,7 +674,8 @@ class SubdPanel(QWidget):
             return
         if spec.value_label and key in self._last_value:      # the value last typed for it
             self.value.setValue(self._last_value[key])
-        if (spec.value_label or self._tool_combo() is not None) and not self._ask_value(spec):
+        if spec.value_label or self._tool_combo() is not None:
+            self._ask_value(spec, then=self.apply)
             return
         self.apply()
 
@@ -689,29 +690,59 @@ class SubdPanel(QWidget):
             return self.ends
         return self.axis if subdiv_ops.SPECS[self.tool].axis else None
 
-    def _ask_value(self, spec) -> bool:
-        """A small box at the cursor with everything the tool asks for: its value and
-        its choice (direction, wall side, cut style, ends). Enter applies, Esc cancels;
-        the panel keeps what was chosen. Returns False when cancelled."""
+    _box_dlg = None
+    _box_pos = None
+
+    def _ask_value(self, spec, then=None) -> None:
+        """A small window with everything the tool asks for: its value and its choice
+        (direction, wall side, cut style, ends), with a live preview. Drag it anywhere
+        with the mouse; it stays open while you turn the view. Enter or Apply runs
+        ``then``; Esc cancels and the panel keeps its values."""
         from PySide6.QtWidgets import QDialog
+        if self._box_dlg is not None:
+            self._box_dlg.close()
         label = T(subdiv_ops.SPECS[self.tool].label)
 
         class _Box(QDialog):
+            def event(self, ev):                                  # noqa: N802
+                if ev.type() == QEvent.ShortcutOverride and ev.key() in (
+                        Qt.Key_Escape, Qt.Key_Return, Qt.Key_Enter):
+                    ev.accept()                  # the model's own shortcuts must not take these
+                    return True
+                return super().event(ev)
+
             def keyPressEvent(self, ev):                          # noqa: N802
                 if ev.key() in (Qt.Key_Return, Qt.Key_Enter):
                     self.accept()
+                elif ev.key() == Qt.Key_Escape:
+                    self.reject()
                 else:
                     super().keyPressEvent(ev)
 
-        dlg = _Box(self.app.viewport.window(), Qt.Popup)
+            def mousePressEvent(self, ev):                        # noqa: N802
+                if ev.button() == Qt.LeftButton:
+                    self._grab = ev.globalPosition().toPoint() - self.frameGeometry().topLeft()
+
+            def mouseMoveEvent(self, ev):                         # noqa: N802
+                if ev.buttons() & Qt.LeftButton and getattr(self, "_grab", None) is not None:
+                    self.move(ev.globalPosition().toPoint() - self._grab)
+
+            def mouseReleaseEvent(self, ev):                      # noqa: N802
+                self._grab = None
+
+        dlg = _Box(self.app.viewport.window(), Qt.Tool | Qt.FramelessWindowHint)
+        dlg.setAttribute(Qt.WA_DeleteOnClose)
+        dlg.setCursor(Qt.SizeAllCursor)
+        dlg.setStyleSheet("QDialog { border: 1px solid #888; }")
         col = QVBoxLayout(dlg)
         col.setContentsMargins(10, 8, 10, 8)
-        col.addWidget(QLabel(f"<b>{label}</b>"))
+        col.addWidget(QLabel(f"<b>{label}</b>  ⠿"))
         box = None
         if spec.value_label:
             row = QHBoxLayout()
             row.addWidget(QLabel(T(spec.value_label)))
             box = QDoubleSpinBox()
+            box.setCursor(Qt.ArrowCursor)
             box.setDecimals(self.value.decimals())
             box.setRange(self.value.minimum(), self.value.maximum())
             box.setSingleStep(self.value.singleStep())
@@ -725,6 +756,7 @@ class SubdPanel(QWidget):
         combo = None
         if src is not None:
             combo = QComboBox()
+            combo.setCursor(Qt.ArrowCursor)
             for i in range(src.count()):
                 combo.addItem(src.itemText(i), src.itemData(i))
             combo.setCurrentIndex(src.currentIndex())
@@ -734,6 +766,7 @@ class SubdPanel(QWidget):
             row = QHBoxLayout()
             row.addWidget(QLabel(T("Soft")))
             radius = QDoubleSpinBox()
+            radius.setCursor(Qt.ArrowCursor)
             radius.setDecimals(self.soft_radius.decimals())
             radius.setRange(self.soft_radius.minimum(), self.soft_radius.maximum())
             radius.setSuffix(self.soft_radius.suffix())
@@ -743,14 +776,14 @@ class SubdPanel(QWidget):
         hint = QHBoxLayout()
         hint.addWidget(QLabel(T("Enter applies, Esc cancels")), 1)
         ok = QPushButton(T("Apply"))
+        ok.setCursor(Qt.ArrowCursor)
         ok.clicked.connect(dlg.accept)
         hint.addWidget(ok)
         col.addLayout(hint)
         saved = (self.value.value(), src.currentIndex() if src is not None else None)
 
         def preview(*_a):
-            """Show the result for what the box holds, while it is still open."""
-            sc = self._scale if spec.length else 1.0
+            """Show the result for what the window holds, while it is still open."""
             self.value.blockSignals(True)
             if box is not None:
                 self.value.setValue(box.value())
@@ -771,30 +804,40 @@ class SubdPanel(QWidget):
             box.valueChanged.connect(preview)
         if combo is not None:
             combo.currentIndexChanged.connect(preview)
-        QTimer.singleShot(0, preview)
+
+        def done(accepted: bool):
+            self._box_pos = dlg.pos()
+            self._box_dlg = None
+            self._box_ghost = None
+            self.app.viewport.update()
+            if not accepted:
+                self.value.blockSignals(True)
+                self.value.setValue(saved[0])
+                self.value.blockSignals(False)
+                if src is not None and saved[1] is not None:
+                    src.setCurrentIndex(saved[1])
+                return
+            if box is not None:
+                box.interpretText()
+                self.value.setValue(box.value())
+                self._last_value[self.tool] = box.value()
+            if combo is not None:
+                src.setCurrentIndex(combo.currentIndex())
+            if radius is not None:
+                radius.interpretText()
+                self.soft_radius.setValue(radius.value())
+            if then is not None:
+                QTimer.singleShot(0, then)
+        dlg.accepted.connect(lambda: done(True))
+        dlg.rejected.connect(lambda: done(False))
+        self._box_dlg = dlg
+        dlg.move(self._box_pos or getattr(self, "_menu_pos", dlg.pos()) + QPoint(24, 24))
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
         first = box or combo
-        dlg.move(getattr(self, "_menu_pos", dlg.pos()))
         QTimer.singleShot(0, lambda: (first.setFocus(), box.selectAll() if box else None))
-        accepted = dlg.exec() == QDialog.Accepted
-        self._box_ghost = None
-        self.app.viewport.update()
-        if not accepted:
-            self.value.blockSignals(True)
-            self.value.setValue(saved[0])
-            self.value.blockSignals(False)
-            if src is not None and saved[1] is not None:
-                src.setCurrentIndex(saved[1])
-            return False
-        if box is not None:
-            box.interpretText()
-            self.value.setValue(box.value())
-            self._last_value[self.tool] = box.value()
-        if combo is not None:
-            src.setCurrentIndex(combo.currentIndex())
-        if radius is not None:
-            radius.interpretText()
-            self.soft_radius.setValue(radius.value())
-        return True
+        QTimer.singleShot(0, preview)
 
     # ---- live adjustment: move the mouse, see the result, click ------------------------
     LIVE_TOOLS = ("edit", "crease", "grow_face", "grow_edge", "stretch", "inset_face",
@@ -916,8 +959,7 @@ class SubdPanel(QWidget):
         self._last_value[live["key"]] = live["v"]
         sc = self._scale if spec.length else 1.0
         self.value.setValue(live["v"] / sc)
-        if self._ask_value(spec):
-            self.apply()
+        self._ask_value(spec, then=self.apply)
         return True
 
     def live_key(self, key) -> bool:

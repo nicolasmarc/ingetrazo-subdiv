@@ -14,6 +14,8 @@
 - Ctrl + drag a move handle copies the selected faces (in place), or the whole piece as a new SubD group when every face is selected (right-click: Select all faces).
 - The value box shows a live wireframe preview while you type, with an Apply button; the mouse-following mode is now optional and a right-click validates it.
 - Picking on the skin is steadier: the item under the cursor lights up in blue before you click, and the point / edge / face zones scale with the size of the face on screen.
+- Loft grows out of the cage faces: welded to their points, an attached face (or a middle one) is removed so the new surface joins the piece, a free face at an end stays as the cap (or goes with open ends).
+- The value window can be dragged anywhere with the mouse, stays open while you turn the view, and reopens where you left it.
 - Move / rotate handles are drawn (and usable) with the cage hidden.
 
 - **Eight new tools**: Revolve, Bevel, Loft, Sweep, Slice, Merge, Dissolve and Slide
