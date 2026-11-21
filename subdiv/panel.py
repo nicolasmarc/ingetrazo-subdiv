@@ -735,6 +735,12 @@ class SubdPanel(QWidget):
             def mousePressEvent(self, ev):                        # noqa: N802
                 if ev.button() == Qt.LeftButton:
                     self._grab = ev.globalPosition().toPoint() - self.frameGeometry().topLeft()
+                    handle = self.windowHandle()
+                    try:                         # the system moves the window: smooth, no lag
+                        if handle is not None and handle.startSystemMove():
+                            self._grab = None
+                    except Exception:                                # noqa: BLE001
+                        pass
 
             def mouseMoveEvent(self, ev):                         # noqa: N802
                 if ev.buttons() & Qt.LeftButton and getattr(self, "_grab", None) is not None:
@@ -749,7 +755,9 @@ class SubdPanel(QWidget):
         dlg.setStyleSheet("QDialog { border: 1px solid #888; }")
         col = QVBoxLayout(dlg)
         col.setContentsMargins(10, 8, 10, 8)
-        col.addWidget(QLabel(f"<b>{label}</b>  ⠿"))
+        grip = QLabel(f"<b>{label}</b>   ⠿⠿⠿")
+        grip.setStyleSheet("background: #e4e4e4; padding: 4px 6px;")
+        col.addWidget(grip)
         box = None
         if spec.value_label:
             row = QHBoxLayout()
@@ -844,6 +852,8 @@ class SubdPanel(QWidget):
         dlg.accepted.connect(lambda: done(True))
         dlg.rejected.connect(lambda: done(False))
         self._box_dlg = dlg
+        for lab in dlg.findChildren(QLabel):            # grab the box by any text, not just the title
+            lab.setAttribute(Qt.WA_TransparentForMouseEvents)
         dlg.move(self._box_pos or getattr(self, "_menu_pos", dlg.pos()) + QPoint(24, 24))
         dlg.show()
         dlg.raise_()
@@ -1242,7 +1252,7 @@ class SubdPanel(QWidget):
         if o is None or d is None:
             return None
         xs, ys, front = self.app.world_to_pixels(skin.verts)
-        return subdiv_ops.pick_skin(cage, skin, xs.tolist(), ys.tolist(), front.tolist(),
+        return subdiv_ops.pick_skin(cage, skin, xs, ys, front,
                                     px, py, (self._xyz(o), self._xyz(d)), skip=skip)
 
     def pick_item(self, viewport, px: float, py: float, skip=()):
@@ -1693,7 +1703,7 @@ class SubdPanel(QWidget):
             return
         skin = self._skin_of(g)
         xs, ys, front = self.app.world_to_pixels(skin.verts)
-        pt = [QPointF(float(x), float(y)) for x, y in zip(xs, ys)]
+        pt = _LazyPoints(xs, ys)                      # only the points drawn are made
         for sel in items:
             if not subdiv_ops.valid(cage, sel):
                 continue
@@ -1752,7 +1762,19 @@ class SubdPanel(QWidget):
         if self._hover is None or g is None or self._drag is not None or self._live is not None:
             return
         self._draw_skin_items(painter, g, [self._hover], QColor(40, 130, 255, 100),
-                              QColor(40, 130, 255), QColor(40, 130, 255), 4.5, 6.5)
+                              QColor(40, 130, 255), QColor(40, 130, 255), 4.5, 8.0)
+        h = self._hover
+        if h[0] in "fe" and not self.show_cage.isChecked():   # show the points you can grab
+            cage = _state(g)[0]
+            if subdiv_ops.valid(cage, h):
+                ids = list(cage.faces[h[1]]) if h[0] == "f" else [h[1], h[2]]
+                skin = self._skin_of(g)
+                xs, ys, front = self.app.world_to_pixels(skin.verts[ids])
+                painter.setPen(QPen(QColor(30, 30, 30), 1.2))
+                painter.setBrush(QBrush(QColor(255, 255, 255)))
+                for x, y, fr in zip(xs, ys, front):
+                    if fr:
+                        painter.drawEllipse(QPointF(float(x), float(y)), 3.6, 3.6)
 
     def draw(self, viewport, painter) -> None:
         self._draw_live(painter)
@@ -2420,6 +2442,15 @@ class _DragFilter(QObject):
             log.exception(T("SubD drag failed"))
             self.panel._drag = None
         return False
+
+
+class _LazyPoints:
+    """``pt[k]`` as a QPointF, made when asked (a skin can have tens of thousands)."""
+    def __init__(self, xs, ys) -> None:
+        self.xs, self.ys = xs, ys
+
+    def __getitem__(self, k):
+        return QPointF(float(self.xs[int(k)]), float(self.ys[int(k)]))
 
 
 def _face_count(group) -> int:

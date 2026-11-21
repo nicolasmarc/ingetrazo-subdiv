@@ -565,7 +565,8 @@ def sweep_items(cage, sels, value, axis="closed") -> Result:
     if set(prof) & set(path) and not closed:
         # the profile shares a point with the path: start the path there
         pass
-    n = modeling.sweep(cage, prof, path, closed, closed_ends=axis != "open", twist_deg=value)
+    n = modeling.sweep(cage, prof, path, closed, closed_ends=axis != "open", twist_deg=value,
+                       face=faces[0][1])
     return Result(None, _T('Swept along {k} points: {n} faces added', k=len(path), n=n))
 
 
@@ -634,6 +635,7 @@ def sweep_loose(cage: Cage, sels, loops, segments, value, axis="closed") -> Resu
     edges = [(x[1], x[2]) for x in sels if x and x[0] == "e"]
     if segments:
         edges = [tuple(_weld_points(cage, seg)) for seg in segments]
+    face = faces[0][1] if faces else None
     if faces:
         prof = list(cage.faces[faces[0][1]])
     elif len(loops) == 1:
@@ -643,7 +645,8 @@ def sweep_loose(cage: Cage, sels, loops, segments, value, axis="closed") -> Resu
     if prof is None or not edges:
         raise ValueError(_T("Sweep: select one face (the profile), then Shift+click the edges of the path"))
     path, closed = modeling.chain_from_edges(edges)
-    n = modeling.sweep(cage, prof, path, closed, closed_ends=axis != "open", twist_deg=value)
+    n = modeling.sweep(cage, prof, path, closed, closed_ends=axis != "open", twist_deg=value,
+                       face=face)
     cage.prune()
     return Result(None, _T('Swept along {k} points: {n} faces added', k=len(path), n=n))
 
@@ -917,13 +920,13 @@ def pick_skin(cage: Cage, skin: Skin, xs, ys, front, px: float, py: float, ray,
     lens = [math.hypot(xs[face[i]] - xs[face[(i + 1) % len(face)]],
                        ys[face[i]] - ys[face[(i + 1) % len(face)]]) for i in range(len(face))]
     size = min(lens) if lens else tol
-    tol_v = min(tol, max(4.0, 0.28 * size))
+    tol_v = min(tol * 2.0, max(7.0, 0.42 * size))         # points are easy to grab
     tol_e = min(tol * 0.85, max(3.5, 0.2 * size))
     best, best_score = None, 1.0
     for fj in near:
         for v in cage.faces[fj]:
             if front[v]:
-                score = (0.85 if fj != fi else 0.82) * math.hypot(xs[v] - px, ys[v] - py) / tol_v
+                score = (0.8 if fj != fi else 0.75) * math.hypot(xs[v] - px, ys[v] - py) / tol_v
                 if score < best_score:
                     best, best_score = ("v", v), score
     for fj in near:

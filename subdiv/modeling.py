@@ -685,7 +685,7 @@ def _key(p):
 
 
 def _make_surface(cage: Cage, rings, closed_ends: bool, closed_path: bool = False,
-                  reuse=None, caps=None) -> int:
+                  reuse=None, caps=None, first=None) -> int:
     """Quads between consecutive rings (lists of points, equal size), new points
     added to the cage (``reuse`` maps a position to an existing point to use
     instead, so the surface is welded to it); optional caps (``caps`` = start, end).
@@ -697,6 +697,8 @@ def _make_surface(cage: Cage, rings, closed_ends: bool, closed_path: bool = Fals
                 return i
         return cage._new_vert(p)
     ids = [[vid(p) for p in r] for r in rings]
+    if first is not None:                       # the first ring IS these existing points
+        ids[0] = list(first)
     n = len(rings[0])
     added = 0
     last = len(ids) if closed_path else len(ids) - 1
@@ -848,7 +850,7 @@ def chain_from_edges(edges) -> tuple[list[int], bool]:
 
 
 def sweep(cage: Cage, profile: Sequence[int], path: Sequence[int], closed_path: bool = False,
-          closed_ends: bool = True, twist_deg: float = 0.0) -> int:
+          closed_ends: bool = True, twist_deg: float = 0.0, face=None) -> int:
     """Carry a closed profile along a path of points: a copy of the profile
     rides each path point, turned to follow the path (with the least possible
     twist, plus ``twist_deg`` spread along it), and quads join them. The profile
@@ -898,7 +900,20 @@ def sweep(cage: Cage, profile: Sequence[int], path: Sequence[int], closed_path: 
         rings.append(ring)
     snap = _snapshot(cage)
     try:
-        added = _make_surface(cage, rings, closed_ends, closed_path)
+        if face is None:
+            added = _make_surface(cage, rings, closed_ends, closed_path)
+        else:
+            # The profile is a face of the piece: the tube grows out of it and is welded
+            # to its points (the face goes when it is inside the piece, so it is not cut in two).
+            ef = cage.edge_faces()
+            loop = cage.faces[face]
+            attached = any(len(ef.get(ekey(loop[q], loop[(q + 1) % len(loop)]), ())) > 1
+                           for q in range(len(loop)))
+            caps = (False, bool(closed_ends) and not closed_path)
+            added = _make_surface(cage, rings, closed_ends, closed_path,
+                                  caps=caps, first=list(profile))
+            if attached or not closed_ends:
+                cage.remove_faces([face])
         cage.orient()
         return added
     except Exception:

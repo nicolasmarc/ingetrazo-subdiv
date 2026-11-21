@@ -544,3 +544,18 @@ def test_loft_with_open_ends_leaves_the_far_end_open():
     ops.loft_items(c, [("f", top), ("f", nf[0])], 2, "open")
     assert c.is_consistent() and not c.is_closed()
     assert len(c.faces) == 5 + 8
+
+
+def test_sweep_from_a_face_of_the_piece_grows_out_of_it_and_stays_one_closed_piece():
+    cage = Cage.box((1, 1, 1))
+    top = max(range(len(cage.faces)), key=lambda i: cage.face_centroid(i)[2])
+    c = cage.face_centroid(top)
+    a = cage._new_vert(c)
+    b = cage._new_vert((c[0] + 2, c[1], c[2] + 1))
+    d = cage._new_vert((c[0] + 4, c[1] + 1, c[2] + 3))
+    sels = [("f", top), ("e", min(a, b), max(a, b)), ("e", min(b, d), max(b, d))]
+    ops.sweep_items(cage, sels, 0.0)
+    cage.prune()
+    ef = cage.edge_faces()
+    assert all(len(f) == 2 for f in ef.values())          # closed, no hole, no cut
+    assert len(cage.faces) == 14                          # 6 - the profile + 2x4 sides + end cap

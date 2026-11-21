@@ -2,6 +2,10 @@
 
 ## 1.4 (trial)
 
+- Sweep from a face of the piece: the tube now grows out of that face and is welded to it (the face goes), so the piece is no longer cut in two.
+- Faster: "Automatic" smoothing aims at 8 000 triangles (it was 25 000), the hover highlight no longer builds every skin point, and the pick works on the arrays directly.
+- Points are easier to grab on the skin: bigger zone, and the points of the face or edge under the cursor are shown as small dots.
+- The value box can be dragged by any of its text and is moved by the system (smoother).
 - Delete (Supr) on a picked SubD face, edge or point removes just that part (one undo step); before, it could erase the whole piece. Loft / Sweep / Revolve show the plain drawing they will use ("Drawing: n face(s), n line(s)").
 - Triple click on a SubD piece selects the whole piece (move it, Ctrl+drag to copy it, Delete to remove it). The second click of a double-click no longer enters the host's group editing, which hid the SubD handles.
 - Compact panel: icon-only tool buttons (name and description shown above the value), "Join, split, convert" and "Smoothing, finish, handles" are collapsible and closed at first.
