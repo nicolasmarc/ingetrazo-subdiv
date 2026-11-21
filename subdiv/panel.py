@@ -292,6 +292,13 @@ class SubdPanel(QWidget):
                                     "only (smoothing 0 to 4, cage, copy, paste). Untick to get "
                                     "the model's usual menu with the SubD tools inside."))
         lay.addWidget(self.menu_only)
+        self.live_box = QCheckBox(T("Right-click tools: adjust with the mouse"))
+        self.live_box.setChecked(True)
+        self.live_box.setToolTip(T("A tool chosen from the right-click menu follows the mouse: "
+                                   "move to set the value and see the result, click to apply, "
+                                   "Enter to type an exact value, Esc to cancel. Shift = finer, "
+                                   "Ctrl = snap to steps. Untick to always get the value box."))
+        lay.addWidget(self.live_box)
         look = QHBoxLayout()
         look.addWidget(QLabel(T("Smoothing")))
         self.levels = QSpinBox()
@@ -658,6 +665,8 @@ class SubdPanel(QWidget):
         if btn is not None:
             btn.setChecked(True)
         spec = subdiv_ops.SPECS[key]
+        if self.live_box.isChecked() and key in self.LIVE_TOOLS and self._start_live(key):
+            return
         if spec.value_label and key in self._last_value:      # the value last typed for it
             self.value.setValue(self._last_value[key])
         if (spec.value_label or self._tool_combo() is not None) and not self._ask_value(spec):
@@ -741,6 +750,166 @@ class SubdPanel(QWidget):
             radius.interpretText()
             self.soft_radius.setValue(radius.value())
         return True
+
+    # ---- live adjustment: move the mouse, see the result, click ------------------------
+    LIVE_TOOLS = ("edit", "crease", "grow_face", "grow_edge", "stretch", "inset_face",
+                  "offset_edge", "squeeze", "shell", "bevel", "slice", "slide", "merge")
+    _live = None
+
+    def _live_value(self, spec, v0: float, d_px: float, mods) -> float:
+        """The value for a mouse travel of ``d_px`` pixels (right or up = more)."""
+        if mods & Qt.ShiftModifier:
+            d_px /= 5.0                                        # fine
+        key = spec.key
+        if spec.length:
+            v = v0 + self._world_len(self._live["centre"], 1.0) * d_px
+        elif key in ("stretch", "squeeze"):
+            v = v0 * math.exp(d_px / 150.0)
+        elif key == "crease":
+            v = v0 + d_px / 25.0 * spec.step
+        else:
+            v = v0 + d_px / 6.0 * spec.step
+        v = min(spec.hi, max(spec.lo, v))
+        if mods & Qt.ControlModifier and spec.step > 0:
+            v = round(v / spec.step) * spec.step
+        return v
+
+    def _start_live(self, key: str) -> bool:
+        spec = subdiv_ops.SPECS[key]
+        g = self.active_group()
+        sels = self._sels()
+        if g is None or not sels:
+            return False
+        cage = _state(g)[0]
+        idx = subdiv_ops.vertex_union(cage, [x for x in sels if subdiv_ops.valid(cage, x)])
+        if not idx:
+            return False
+        pts = [cage.verts[i] for i in idx]
+        centre = tuple(sum(p[k] for p in pts) / len(pts) for k in range(3))
+        v0 = 0.0 if key == "slide" else self._last_value.get(key, spec.default)
+        vp = self.app.viewport
+        self._live = {"key": key, "spec": spec, "v0": v0, "v": v0, "centre": centre,
+                      "start": None, "pos": None, "ghost": None, "err": None,
+                      "track": vp.hasMouseTracking()}
+        vp.setMouseTracking(True)
+        self._live_preview(v0)
+        self._say(T("Move the mouse to set the value. Click to apply, Enter for an exact value, Esc to cancel"))
+        vp.update()
+        return True
+
+    def _live_preview(self, v: float) -> None:
+        live = self._live
+        spec = live["spec"]
+        sc = self._scale if spec.length else 1.0
+        self.value.blockSignals(True)
+        self.value.setValue(v / sc)
+        self.value.blockSignals(False)
+        live["v"] = v
+        try:
+            _g, cage, _lv, _ln, _res = self._compute()
+            verts, faces = cage.smooth(1 if len(cage.faces) > 150 else 2)
+            live["ghost"] = (verts, {(min(f[i], f[(i + 1) % len(f)]), max(f[i], f[(i + 1) % len(f)]))
+                                     for f in faces for i in range(len(f))})
+            live["err"] = None
+        except ValueError as exc:
+            live["ghost"] = None
+            live["err"] = str(exc)
+
+    def live_move(self, ev) -> bool:
+        live = self._live
+        pos = ev.position()
+        live["pos"] = (pos.x(), pos.y())
+        if live["start"] is None:
+            live["start"] = live["pos"]
+        d = (pos.x() - live["start"][0]) - (pos.y() - live["start"][1])
+        self._live_preview(self._live_value(live["spec"], live["v0"], d, ev.modifiers()))
+        self.app.viewport.update()
+        return True
+
+    def _end_live(self) -> None:
+        live, self._live = self._live, None
+        if live is not None:
+            self.app.viewport.setMouseTracking(live["track"])
+        self.app.viewport.update()
+
+    def live_confirm(self) -> bool:
+        live = self._live
+        if live is None:
+            return False
+        if live["err"]:
+            self._say(live["err"])
+            self._end_live()
+            return True
+        key, v = live["key"], live["v"]
+        self._end_live()
+        sc = self._scale if live["spec"].length else 1.0
+        self._last_value[key] = v
+        self.value.setValue(v / sc)
+        self._swallow = True
+        self.apply()
+        return True
+
+    def live_cancel(self) -> bool:
+        if self._live is None:
+            return False
+        self._end_live()
+        self._configure_value()
+        self._say(T("Cancelled"))
+        return True
+
+    def live_exact(self) -> bool:
+        """Enter while adjusting: type the exact value in the small box."""
+        live = self._live
+        if live is None:
+            return False
+        spec = live["spec"]
+        self._end_live()
+        self._last_value[live["key"]] = live["v"]
+        sc = self._scale if spec.length else 1.0
+        self.value.setValue(live["v"] / sc)
+        if self._ask_value(spec):
+            self.apply()
+        return True
+
+    def live_key(self, key) -> bool:
+        """X, Y, Z while adjusting set the direction."""
+        names = {Qt.Key_X: "x", Qt.Key_Y: "y", Qt.Key_Z: "z", Qt.Key_A: "auto"}
+        live = self._live
+        if key not in names or not live["spec"].axis or self._tool_combo() is not self.axis:
+            return False
+        i = self.axis.findData(names[key])
+        if i >= 0:
+            self.axis.setCurrentIndex(i)
+            pos = live["pos"]
+            if live["start"] is not None and pos is not None:
+                d = (pos[0] - live["start"][0]) - (pos[1] - live["start"][1])
+                self._live_preview(self._live_value(live["spec"], live["v0"], d, Qt.NoModifier))
+            self.app.viewport.update()
+        return True
+
+    def _draw_live(self, painter) -> None:
+        live = self._live
+        if live is None:
+            return
+        if live["ghost"] is not None:
+            self._draw_ghost(painter, live["ghost"])
+        if live["pos"] is None:
+            return
+        spec = live["spec"]
+        sc = self._scale if spec.length else 1.0
+        v = live["v"] / sc
+        suffix = _SUFFIX.get(self._unit, " m") if spec.length else ""
+        dec = self._decimals() if spec.length else (0 if spec.step >= 1 else 2)
+        text = f"{T(subdiv_ops.SPECS[live['key']].label)}   {v:.{dec}f}{suffix}"
+        if live["err"]:
+            text = live["err"]
+        x, y = live["pos"]
+        fm = painter.fontMetrics()
+        w = fm.horizontalAdvance(text) + 16
+        painter.setPen(QPen(QColor(30, 30, 30), 1.0))
+        painter.setBrush(QBrush(QColor(255, 255, 255, 235)))
+        painter.drawRoundedRect(x + 18, y + 14, w, 24, 5, 5)
+        painter.drawText(int(x + 18), int(y + 14), int(w), 24, int(Qt.AlignCenter), text)
 
     # ---- copy / paste of cage faces ------------------------------------------------------
     _clip = None                       # a Cage holding the copied faces
@@ -1035,37 +1204,43 @@ class SubdPanel(QWidget):
                                   delta, cage.sym, self._soft())
         return subdiv_ops.Result(None, "Moved")
 
+    def _compute(self):
+        """Run the current tool on a copy of the cage: ``(group, cage, levels, lines,
+        result)``. Nothing is changed in the model."""
+        g = self.active_group()
+        loose = self._loose_for_tool()
+        if g is None and loose is None:
+            raise ValueError(T("Create a SubD box first, or choose a SubD group"))
+        if g is None:
+            cage, levels, lines = Cage(), int(self.levels.value()), self.lines.currentData()
+        else:
+            cage, levels, lines = _state(g)
+            cage = cage.copy()
+        if loose is not None:
+            loops, segments = loose
+            if self.tool == "revolve":
+                res = subdiv_ops.revolve_loose(cage, self._sels(), loops, segments,
+                                               self._metres(), self._mode())
+            elif self.tool == "loft":
+                res = subdiv_ops.loft_loose(cage, self._sels(), loops, self._metres(),
+                                            self._mode())
+            else:
+                res = subdiv_ops.sweep_loose(cage, self._sels(), loops, segments,
+                                             self._metres(), self._mode())
+        elif self.extra:
+            res = self._apply_many(cage)
+        else:
+            res = subdiv_ops.apply_tool(
+                cage, self.tool, self.sel, self._metres(),
+                self._mode(), self.pending, sym=cage.sym, soft=self._soft())
+        return g, cage, levels, lines, res
+
     def apply(self) -> None:
         try:
             if self.tool == "create":
                 self._create()
                 return
-            g = self.active_group()
-            loose = self._loose_for_tool()
-            if g is None and loose is None:
-                raise ValueError(T("Create a SubD box first, or choose a SubD group"))
-            if g is None:
-                cage, levels, lines = Cage(), int(self.levels.value()), self.lines.currentData()
-            else:
-                cage, levels, lines = _state(g)
-                cage = cage.copy()
-            if loose is not None:
-                loops, segments = loose
-                if self.tool == "revolve":
-                    res = subdiv_ops.revolve_loose(cage, self._sels(), loops, segments,
-                                                   self._metres(), self._mode())
-                elif self.tool == "loft":
-                    res = subdiv_ops.loft_loose(cage, self._sels(), loops, self._metres(),
-                                                self._mode())
-                else:
-                    res = subdiv_ops.sweep_loose(cage, self._sels(), loops, segments,
-                                                 self._metres(), self._mode())
-            elif self.extra:
-                res = self._apply_many(cage)
-            else:
-                res = subdiv_ops.apply_tool(
-                    cage, self.tool, self.sel, self._metres(),
-                    self._mode(), self.pending, sym=cage.sym, soft=self._soft())
+            g, cage, levels, lines, res = self._compute()
         except ValueError as exc:
             self._say(str(exc))
             return
@@ -1390,6 +1565,7 @@ class SubdPanel(QWidget):
                     painter.drawEllipse(pt[sel[1]], 5.5, 5.5)
 
     def draw(self, viewport, painter) -> None:
+        self._draw_live(painter)
         if not self.show_cage.isChecked():
             g0 = self.active_group()
             if g0 is not None and self.skin_pick.isChecked():
@@ -1897,6 +2073,33 @@ class _DragFilter(QObject):
     def eventFilter(self, obj, ev) -> bool:                      # noqa: N802
         try:
             t = ev.type()
+            if self.panel._live is not None:
+                pn = self.panel
+                if t == QEvent.MouseMove:
+                    return pn.live_move(ev)
+                if t == QEvent.MouseButtonPress:
+                    return pn.live_confirm() if ev.button() == Qt.LeftButton else pn.live_cancel()
+                if t == QEvent.MouseButtonRelease:
+                    return True
+                if t == QEvent.ContextMenu:
+                    return True
+                if t in (QEvent.ShortcutOverride, QEvent.KeyPress):
+                    if ev.key() == Qt.Key_Escape:
+                        if t == QEvent.KeyPress:
+                            pn.live_cancel()
+                        ev.accept()
+                        return True
+                    if ev.key() in (Qt.Key_Return, Qt.Key_Enter):
+                        if t == QEvent.KeyPress:
+                            pn.live_exact()
+                        ev.accept()
+                        return True
+                    if ev.key() in (Qt.Key_X, Qt.Key_Y, Qt.Key_Z, Qt.Key_A) and \
+                            pn._live["spec"].axis:
+                        if t == QEvent.KeyPress:
+                            pn.live_key(ev.key())
+                        ev.accept()
+                        return True
             if t == QEvent.MouseButtonPress and ev.button() == Qt.LeftButton:
                 return bool(self.panel.mouse_press(ev))
             if t == QEvent.ContextMenu:

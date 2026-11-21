@@ -10,6 +10,7 @@
 - Tools that take a value or a choice (Bevel, Offset, Shell side, Divide cut, Loft ends, direction…) ask for it in a small box at the cursor when run from the right-click menu; the last value typed per tool is remembered. Symmetry and Soft are toggles in that menu.
 - Ctrl+C / Ctrl+V (and menu entries) copy selected SubD faces and paste them as a new SubD piece.
 - Right-click on the SubD piece opens a menu of SubD tools only (switchable in "Smoothing, finish, handles"), with Smoothing 0 to 4 / Auto.
+- Live adjustment: a tool chosen from the right-click menu (Edit cage, Crease, Grow, Stretch, Offset, Squeeze, Shell, Bevel, Slice, Slide, Merge) follows the mouse with a live wireframe preview and the value shown at the cursor; click applies, Enter types an exact value, Esc cancels, Shift = finer, Ctrl = snap, X/Y/Z set the direction.
 - Move / rotate handles are drawn (and usable) with the cage hidden.
 
 - **Eight new tools**: Revolve, Bevel, Loft, Sweep, Slice, Merge, Dissolve and Slide

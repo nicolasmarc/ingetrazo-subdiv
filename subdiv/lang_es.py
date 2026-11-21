@@ -498,4 +498,12 @@ ES = {
         "Clic derecho: solo herramientas SubD",
     "Right-click on the SubD piece shows a menu of SubD tools only (smoothing 0 to 4, cage, copy, paste). Untick to get the model's usual menu with the SubD tools inside.":
         "El clic derecho sobre la pieza SubD muestra solo las herramientas SubD (suavizado de 0 a 4, jaula, copiar, pegar). Desmárcalo para recuperar el menú habitual del modelo, con las herramientas SubD dentro.",
+    "Move the mouse to set the value. Click to apply, Enter for an exact value, Esc to cancel":
+        "Mueve el ratón para fijar el valor. Clic para aplicar, Intro para un valor exacto, Esc para cancelar",
+    "Cancelled":
+        "Cancelado",
+    "Right-click tools: adjust with the mouse":
+        "Herramientas del clic derecho: ajustar con el ratón",
+    "A tool chosen from the right-click menu follows the mouse: move to set the value and see the result, click to apply, Enter to type an exact value, Esc to cancel. Shift = finer, Ctrl = snap to steps. Untick to always get the value box.":
+        "Una herramienta elegida en el menú del clic derecho sigue al ratón: mueve para fijar el valor y ver el resultado, clic para aplicar, Intro para escribir un valor exacto, Esc para cancelar. Mayús = más fino, Ctrl = por pasos. Desmarca para tener siempre el cuadro de valor.",
 }

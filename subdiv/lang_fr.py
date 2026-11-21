@@ -498,4 +498,12 @@ FR = {
         "Clic droit : outils SubD seulement",
     "Right-click on the SubD piece shows a menu of SubD tools only (smoothing 0 to 4, cage, copy, paste). Untick to get the model's usual menu with the SubD tools inside.":
         "Un clic droit sur la pièce SubD n'affiche que les outils SubD (lissage de 0 à 4, cage, copier, coller). Décocher pour retrouver le menu habituel du modèle, avec les outils SubD à l'intérieur.",
+    "Move the mouse to set the value. Click to apply, Enter for an exact value, Esc to cancel":
+        "Bouger la souris pour régler la valeur. Clic pour appliquer, Entrée pour une valeur exacte, Échap pour annuler",
+    "Cancelled":
+        "Annulé",
+    "Right-click tools: adjust with the mouse":
+        "Outils du clic droit : régler à la souris",
+    "A tool chosen from the right-click menu follows the mouse: move to set the value and see the result, click to apply, Enter to type an exact value, Esc to cancel. Shift = finer, Ctrl = snap to steps. Untick to always get the value box.":
+        "Un outil choisi dans le menu clic droit suit la souris : bouger pour régler la valeur et voir le résultat, cliquer pour appliquer, Entrée pour saisir une valeur exacte, Échap pour annuler. Maj = plus fin, Ctrl = par pas. Décocher pour toujours avoir la boîte de saisie.",
 }
