@@ -163,6 +163,8 @@ class SubdPanel(QWidget):
         self.axis.setToolTip(T("Direction for Edit, Stretch and Squeeze "
                              "(Auto: the face's normal / ring)"))
         vrow.addWidget(self.axis)
+        self.axis.currentIndexChanged.connect(lambda *_: self.app.viewport.update())
+        self.value.valueChanged.connect(lambda *_: self.app.viewport.update())
         self.side = QComboBox()
         for text, data in ((T("Outside"), "outside"), (T("Inside"), "inside"), (T("Centred"), "center")):
             self.side.addItem(text, data)
@@ -521,6 +523,8 @@ class SubdPanel(QWidget):
             self.pending = None
             self._bridge_first = None
         self.tool = key
+        if key == "slice" and self.axis.currentData() not in AXIS_VEC:
+            self.axis.setCurrentIndex(self.axis.findData("z"))     # so the plane shows at once
         self._units_refresh()
         self._configure_value()
         self._sync()
@@ -1776,9 +1780,47 @@ class SubdPanel(QWidget):
                     if fr:
                         painter.drawEllipse(QPointF(float(x), float(y)), 3.6, 3.6)
 
+    def _draw_slice_plane(self, painter) -> None:
+        """Slice: the cutting plane, drawn as a see-through sheet so you see where it cuts."""
+        if self.tool != "slice":
+            return
+        g = self.active_group()
+        axis = self.axis.currentData()
+        if g is None or axis not in AXIS_VEC:
+            return
+        cage = _state(g)[0]
+        if not cage.verts:
+            return
+        sels = [x for x in self._sels() if subdiv_ops.valid(cage, x)]
+        lo, hi = cage.bounds()
+        if sels:
+            pts = [cage.verts[i] for i in subdiv_ops.vertex_set(cage, sels[0])]
+        else:
+            pts = [lo, hi]
+        c = [sum(p[k] for p in pts) / len(pts) for k in range(3)]
+        live = self._live
+        v = live["v"] if live is not None and live.get("key") == "slice" else self._metres()
+        n = AXIS_VEC[axis]
+        point = [c[k] + n[k] * v for k in range(3)]
+        u, w = subdiv_ops.plane_basis(n)
+        half = 0.62 * max(hi[k] - lo[k] for k in range(3)) or 1.0
+        mid = [(lo[k] + hi[k]) / 2 for k in range(3)]
+        for k in range(3):                       # keep the sheet centred on the piece
+            d = (mid[k] - point[k]) * (1 - abs(n[k]))
+            point[k] += d
+        corners = [[point[k] + u[k] * a * half + w[k] * b * half for k in range(3)]
+                   for a, b in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+        xs, ys, front = self.app.world_to_pixels(np.array(corners, dtype=float))
+        col = AXIS_COLOR[axis]
+        poly = QPolygonF([QPointF(float(x), float(y)) for x, y in zip(xs, ys)])
+        painter.setPen(QPen(QColor(col.red(), col.green(), col.blue(), 220), 1.6, Qt.DashLine))
+        painter.setBrush(QBrush(QColor(col.red(), col.green(), col.blue(), 45)))
+        painter.drawPolygon(poly)
+
     def draw(self, viewport, painter) -> None:
         self._draw_live(painter)
         self._draw_hover(painter)
+        self._draw_slice_plane(painter)
         if not self.show_cage.isChecked():
             g0 = self.active_group()
             if g0 is not None and self.skin_pick.isChecked():
@@ -1868,7 +1910,7 @@ class SubdPanel(QWidget):
         if not sels:
             return None
         chosen = self.axis.currentData()
-        keys = [chosen] if chosen in AXIS_VEC else list(AXIS_VEC)
+        keys = list(AXIS_VEC)                  # always the three: the direction list is for Apply
         idx = subdiv_ops.vertex_union(cage, sels)
         pts = [cage.verts[i] for i in idx]
         c = tuple(sum(p[k] for p in pts) / len(pts) for k in range(3))
@@ -1965,7 +2007,7 @@ class SubdPanel(QWidget):
         if not sels:
             return None
         chosen = self.axis.currentData()
-        keys = [chosen] if chosen in AXIS_VEC else list(AXIS_VEC)
+        keys = list(AXIS_VEC)                  # always the three: the direction list is for Apply
         idx = subdiv_ops.vertex_union(cage, sels)
         pts = [cage.verts[i] for i in idx]
         c = [sum(p[k] for p in pts) / len(pts) for k in range(3)]

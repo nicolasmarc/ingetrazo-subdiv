@@ -2,6 +2,8 @@
 
 ## 1.4 (trial)
 
+- Slice shows its cutting plane as a see-through sheet (it follows the offset and the X/Y/Z choice, also while you adjust); the tool starts on Z.
+- The move and rotate handles always show the three axes: the direction list (X/Y/Z) no longer reduces them to one ring and one arrow.
 - Sweep from a face of the piece: the tube now grows out of that face and is welded to it (the face goes), so the piece is no longer cut in two.
 - Faster: "Automatic" smoothing aims at 8 000 triangles (it was 25 000), the hover highlight no longer builds every skin point, and the pick works on the arrays directly.
 - Points are easier to grab on the skin: bigger zone, and the points of the face or edge under the cursor are shown as small dots.
