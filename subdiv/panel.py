@@ -1096,6 +1096,14 @@ class SubdPanel(QWidget):
             g0 = self.active_group()
             if g0 is not None and self.skin_pick.isChecked():
                 self._draw_skin_selection(painter, g0)
+            if g0 is not None:                  # the move / rotate handles stay usable
+                drag = self._drag
+                live = drag is not None and drag.get("preview") is not None
+                cage = drag["preview"] if live else _state(g0)[0]
+                if cage.verts:
+                    if live:
+                        self._draw_ghost(painter, drag["ghost"])
+                    self._draw_handles(painter, cage)
             return
         for other in self._others():
             self._draw_inactive(painter, _state(other)[0])
@@ -1141,6 +1149,9 @@ class SubdPanel(QWidget):
             painter.setBrush(QBrush(QColor(255, 255, 255) if hot else ACCENT))
             r = 5.5 if hot else 3.2
             painter.drawEllipse(p, r, r)
+        self._draw_handles(painter, cage)
+
+    def _draw_handles(self, painter, cage) -> None:
         mode = self.handles.currentData()
         if mode in ("both", "rotate"):
             self._draw_rings(painter, cage)
