@@ -308,6 +308,12 @@ class SubdPanel(QWidget):
                                     "only (smoothing 0 to 4, cage, copy, paste). Untick to get "
                                     "the model's usual menu with the SubD tools inside."))
         lay.addWidget(self.menu_only)
+        self.fast_edit = QCheckBox(T("Light surface while editing"))
+        self.fast_edit.setChecked(True)
+        self.fast_edit.setToolTip(T("Each edit shows a lighter surface at once and finishes the "
+                                    "full smoothing when you pause (about a second). Faster to "
+                                    "model with; untick to always build the full surface."))
+        lay.addWidget(self.fast_edit)
         self.live_box = QCheckBox(T("Right-click tools: adjust with the mouse"))
         self.live_box.setChecked(False)
         self.live_box.setToolTip(T("A tool chosen from the right-click menu follows the mouse: "
@@ -1379,18 +1385,32 @@ class SubdPanel(QWidget):
                                ray=ray, skip=skip)
 
     # ---- changing the model ----------------------------------------------------------
-    def _commit(self, old, cage: Cage, levels: int, lines: str) -> None:
+    FAST_TRIS = 1000           # triangles of the light surface shown while you work
+    REFINE_MS = 600            # the full surface is built after this long without an edit
+
+    def _commit(self, old, cage: Cage, levels: int, lines: str, final: bool = False) -> None:
         vp = self.app.viewport
         if not cage.is_consistent():
             cage.orient()                   # mixed winding shows as blue back faces
         if self.auto.isChecked():
             levels = subdiv_group.auto_levels(cage)
+        light = levels
+        if not final and self.fast_edit.isChecked() and levels > 1:
+            light = 1
+            for lv in range(levels, 0, -1):
+                if subdiv_group.triangle_count(cage, lv) <= self.FAST_TRIS:
+                    light = lv
+                    break
         name = old.name if old is not None else "SubD"
-        new = subdiv_group.build_group(cage, levels, Group, Mesh, QVector3D,
+        new = subdiv_group.build_group(cage, light, Group, Mesh, QVector3D,
                                        name=name, lines=lines)
+        if light != levels:                 # the group remembers the real smoothing
+            new.ext[subdiv_group.KEY]["levels"] = int(levels)
         if old is not None:
             subdiv_group.carry_over(old, new)
-        vp.history.execute(_Swap(old, new))
+        cmd = _Swap(old, new)
+        self._refine_gen += 1
+        vp.history.execute(cmd)
         err = getattr(vp.history, "last_error", None)
         if err:
             self._say(T("Could not apply: {err}", err=err))
@@ -1400,6 +1420,42 @@ class SubdPanel(QWidget):
         if callable(notify):
             notify()
         vp.update()
+        if light != levels:
+            gen = self._refine_gen
+            QTimer.singleShot(self.REFINE_MS, lambda: self._refine(gen, cmd, new, cage, levels, lines))
+
+    _refine_gen = 0
+
+    def _refine(self, gen, cmd, light, cage: Cage, levels: int, lines: str) -> None:
+        """Pause reached: swap the light surface for the full one, inside the same undo step."""
+        vp = self.app.viewport
+        try:
+            if gen != self._refine_gen or self._drag is not None or self._live is not None \
+                    or self._box_dlg is not None:
+                if gen == self._refine_gen:               # busy: look again shortly
+                    QTimer.singleShot(self.REFINE_MS, lambda: self._refine(gen, cmd, light, cage,
+                                                                           levels, lines))
+                return
+            groups = vp.scene.groups
+            stack = getattr(vp.history, "undo_stack", [])
+            if light not in groups or not stack or stack[-1] is not cmd:
+                if light in groups:                       # another action came first
+                    self._say(T("Light surface kept: press Update look for the full smoothing"))
+                return
+            full = subdiv_group.build_group(cage, levels, Group, Mesh, QVector3D,
+                                            name=light.name, lines=lines)
+            subdiv_group.carry_over(light, full)
+            groups[groups.index(light)] = full
+            cmd.new = full
+            vp.scene.version += 1
+            if self.active_uid == light.uid:              # (the same uid: just keep it)
+                self.active_uid = full.uid
+            notify = getattr(vp, "notify_scene_changed", None)
+            if callable(notify):
+                notify()
+            vp.update()
+        except Exception:                                  # noqa: BLE001
+            log.exception(T("SubD drag failed"))
 
     def _finish_levels(self, cage, levels: int) -> int:
         """The smoothing level to finish with, from the Finish detail menu."""
@@ -1768,7 +1824,7 @@ class SubdPanel(QWidget):
             self._say(T("No SubD group to update"))
             return
         cage = _state(g)[0].copy()
-        self._commit(g, cage, int(self.levels.value()), self.lines.currentData())
+        self._commit(g, cage, int(self.levels.value()), self.lines.currentData(), final=True)
         self._say(T("Look updated"))
 
     def flip(self) -> None:

@@ -2,6 +2,7 @@
 
 ## 1.4 (trial)
 
+- Faster modelling: each edit shows a light surface at once (about 1 000 triangles) and the full smoothing is built when you pause (0.6 s), inside the same undo step. Can be switched off ("Light surface while editing"). The surface is also filled with the host's bulk builder when it has one.
 - Loft and Bridge between two SubD groups: Shift+click a face of the other group (on its skin or its cage); it is joined into the active group (one undo step) and the face is added to the selection. A plain click on another group's skin now makes it the active one too.
 - Loft twist is a real twist: rings in between keep their radius (no pinched waist), and a twist with fewer than 3 segments uses 4 so that it shows.
 - Loft, Sweep and Revolve show a preview of their result as soon as what they need is selected, before Apply.

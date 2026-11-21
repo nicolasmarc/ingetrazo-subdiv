@@ -540,4 +540,10 @@ ES = {
         "Las caras azules se ven por detrás. Invertir da la vuelta a la parte conectada de la cara seleccionada; sin selección, todo el grupo.",
     "Joined the other piece: now Apply to {tool} between them":
         "Otra pieza unida: aplica ahora {tool} entre ellas",
+    "Light surface while editing":
+        "Superficie ligera al editar",
+    "Each edit shows a lighter surface at once and finishes the full smoothing when you pause (about a second). Faster to model with; untick to always build the full surface.":
+        "Cada edición muestra al instante una superficie más ligera y termina el suavizado completo cuando haces una pausa (alrededor de un segundo). Más rápido para modelar; desmarca para construir siempre la superficie completa.",
+    "Light surface kept: press Update look for the full smoothing":
+        "Superficie ligera conservada: «Actualizar aspecto» da el suavizado completo",
 }

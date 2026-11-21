@@ -540,4 +540,10 @@ FR = {
         "Les faces bleues sont vues de dos. Retourner inverse la partie connectée qui contient la face sélectionnée ; sans sélection, tout le groupe.",
     "Joined the other piece: now Apply to {tool} between them":
         "Autre pièce jointe : appliquer maintenant {tool} entre elles",
+    "Light surface while editing":
+        "Surface allégée pendant l'édition",
+    "Each edit shows a lighter surface at once and finishes the full smoothing when you pause (about a second). Faster to model with; untick to always build the full surface.":
+        "Chaque modification affiche tout de suite une surface plus légère et termine le lissage complet quand tu fais une pause (environ une seconde). Plus rapide pour modéliser ; décoche pour toujours construire la surface complète.",
+    "Light surface kept: press Update look for the full smoothing":
+        "Surface allégée conservée : « Mettre à jour l'aspect » donne le lissage complet",
 }
