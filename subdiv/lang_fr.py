@@ -516,4 +516,6 @@ FR = {
         "Tout sélectionner",
     "All {n} faces selected: Ctrl + drag a move handle copies the piece":
         "Les {n} faces sont sélectionnées : Ctrl + tirer une poignée de déplacement copie la pièce",
+    "Whole piece selected: move it, copy it, or press Delete to remove it":
+        "Pièce entière sélectionnée : la déplacer, la copier, ou appuyer sur Suppr pour l'effacer",
 }

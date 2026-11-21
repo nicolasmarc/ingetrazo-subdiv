@@ -1966,6 +1966,44 @@ class SubdPanel(QWidget):
                                  QPointF(float(xs[b]), float(ys[b])))
 
     # ---- freestyle dragging ------------------------------------------------------
+    _cc = None                         # (time, (x, y), count) of the last quick left clicks
+
+    def click_count(self, ev, kind):
+        """Counts quick clicks on the same spot. On a SubD piece: the second click of
+        a double-click is kept from the model (it would enter group editing, which hides
+        the SubD handles) and the third selects the whole piece, to move, copy or delete.
+        Returns True when the event is used up, None to go on as usual."""
+        import time
+        now = time.monotonic()
+        pos = ev.position()
+        last = self._cc
+        n = 1
+        if last and now - last[0] < 0.55 and math.hypot(pos.x() - last[1][0], pos.y() - last[1][1]) < 6.0:
+            n = last[2] + 1
+        self._cc = (now, (pos.x(), pos.y()), n)
+        vp = self.app.viewport
+        if n < 2 or ev.modifiers() or \
+                getattr(getattr(vp, "active_tool", None), "name", "") != "Select":
+            return None
+        if self._activate_under(pos.x(), pos.y()):
+            self.refresh()
+        g = self.active_group()
+        if g is None or self.pick_item(None, pos.x(), pos.y()) is None:
+            return None
+        if n == 2:
+            return True if kind == QEvent.MouseButtonDblClick else None
+        self._cc = None
+        self._drag = None
+        self._click = None
+        self.clear_hover()
+        vp.clear_extension_pick()
+        self._clear_sel()
+        vp.scene.select([g])
+        self._swallow = True                       # the release that follows
+        self._say(T("Whole piece selected: move it, copy it, or press Delete to remove it"))
+        vp.update()
+        return True
+
     def _press_copy(self, ev) -> bool:
         """Ctrl held on a move handle with faces selected: the drag carries a copy of
         the faces (or of the whole piece when every face is selected)."""
@@ -2267,6 +2305,11 @@ class _DragFilter(QObject):
     def eventFilter(self, obj, ev) -> bool:                      # noqa: N802
         try:
             t = ev.type()
+            if (t in (QEvent.MouseButtonPress, QEvent.MouseButtonDblClick)
+                    and ev.button() == Qt.LeftButton and self.panel._live is None):
+                used = self.panel.click_count(ev, t)
+                if used:
+                    return True
             if self.panel._live is not None:
                 pn = self.panel
                 if t == QEvent.MouseMove:
