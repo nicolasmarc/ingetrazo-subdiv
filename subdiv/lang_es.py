@@ -315,8 +315,6 @@ ES = {
         "Segmentos",
     "Revolve":
         "Revolución",
-    "Turn the selected face (the profile, drawn away from the axis) round the X, Y or Z axis through the origin into a body of revolution. Points on the axis become poles.":
-        "Hace girar la cara seleccionada (el perfil, dibujado lejos del eje) alrededor del eje X, Y o Z que pasa por el origen para formar un cuerpo de revolución. Los puntos sobre el eje se convierten en polos.",
     "Bevel":
         "Chaflán",
     "Replace the selected edge by a narrow flat strip, to give a corner a support or a chamfer. Click an edge again for its loop to bevel the whole loop.":
@@ -494,4 +492,6 @@ ES = {
         "Nada que pegar: selecciona caras SubD y pulsa Ctrl+C antes",
     "Pasted {n} faces as a new SubD piece: move it with the handles":
         "{n} caras pegadas como pieza SubD nueva: muévela con los tiradores",
+    "Turn the selected face (the profile, drawn away from the axis) round the X, Y or Z axis through the origin into a body of revolution. Points on the axis become poles. The profile can also be a plain face or plain lines from your drawing (select them in the model, then Apply).":
+        "Gira la cara seleccionada (el perfil, dibujado lejos del eje) alrededor del eje X, Y o Z que pasa por el origen para hacer un cuerpo de revolución. Los puntos sobre el eje se convierten en polos. El perfil también puede ser una cara simple o líneas simples de tu dibujo (selecciónalas en el modelo y pulsa Aplicar).",
 }

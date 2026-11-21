@@ -6,7 +6,7 @@
 - "Pick on the skin" is now on by default and sits under the status line; with the cage shown, a cage point or edge you aim at still wins, otherwise the skin is picked. Edge picking on the skin also considers the neighbouring faces and is more tolerant.
 - The SubD panel tab now has an icon.
 - Right-click on a point, edge or face (on the cage or on the skin) opens a SubD menu with the tools that suit it, run with the panel's value.
-- Loft and Sweep accept plain faces and lines from the drawing (select them in the model, then Apply); no SubD group is needed first.
+- Revolve, Loft and Sweep accept plain faces and lines from the drawing (select them in the model, then Apply); no SubD group is needed first.
 - Tools that take a value (Bevel, Offset…) ask for it in a small box at the cursor when run from the right-click menu.
 - Ctrl+C / Ctrl+V (and menu entries) copy selected SubD faces and paste them as a new SubD piece.
 - Move / rotate handles are drawn (and usable) with the cage hidden.

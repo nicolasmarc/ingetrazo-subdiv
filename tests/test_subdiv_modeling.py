@@ -486,3 +486,15 @@ def test_loft_needs_two_sections():
     import pytest
     with pytest.raises(ValueError):
         ops.loft_loose(Cage(), [], [_sq(0.0)], 1)
+
+
+def test_revolve_from_plain_lines_and_face():
+    from subdiv import ops
+    c = Cage()
+    line = [((1, 0, 0), (1.5, 0, 1)), ((1.5, 0, 1), (1, 0, 2))]
+    res = ops.revolve_loose(c, [], [], line, 12, "z")
+    assert res.message.startswith("Revolved") and c.is_consistent()
+    assert len(c.faces) == 24
+    c2 = Cage()
+    res = ops.revolve_loose(c2, [], [[(1, 0, 0), (2, 0, 0), (2, 0, 1), (1, 0, 1)]], [], 8, "z")
+    assert len(c2.faces) == 32 and c2.is_consistent()

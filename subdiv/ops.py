@@ -101,7 +101,9 @@ TOOL_SPECS = [
              "Thickness", 0.05, 0.001, 1000.0, 0.01, False, True),
     ToolSpec("revolve", "subd_revolve", "Revolve",
              "Turn the selected face (the profile, drawn away from the axis) round the X, Y or Z "
-             "axis through the origin into a body of revolution. Points on the axis become poles.",
+             "axis through the origin into a body of revolution. Points on the axis become poles. "
+             "The profile can also be a plain face or plain lines from your drawing (select "
+             "them in the model, then Apply).",
              "Segments", 12.0, 3.0, 96.0, 1.0, True),
     ToolSpec("bevel", "subd_bevel", "Bevel",
              "Replace the selected edge by a narrow flat strip, to give a corner a support "
@@ -492,7 +494,7 @@ def _shell(cage, sel, value, axis, pending):
 
 def _revolve(cage, sel, value, axis, pending):
     _need(sel, "f", _T("a face (the profile)"))
-    n = modeling.revolve(cage, sel[1], axis, int(round(value)))
+    n = modeling.revolve(cage, sel[1], "z" if axis == "auto" else axis, int(round(value)))
     return Result(None, _T('Revolved: {n} faces added', n=n))
 
 
@@ -631,6 +633,26 @@ def sweep_loose(cage: Cage, sels, loops, segments, value, axis="closed") -> Resu
     n = modeling.sweep(cage, prof, path, closed, closed_ends=axis != "open", twist_deg=value)
     cage.prune()
     return Result(None, _T('Swept along {k} points: {n} faces added', k=len(path), n=n))
+
+
+def revolve_loose(cage: Cage, sels, loops, segments_xyz, value, axis) -> Result:
+    """Revolve a plain face, or a plain line chain, round the X, Y or Z axis."""
+    n_seg = int(round(value))
+    axis = "z" if axis == "auto" else axis                  # Auto turns round the vertical axis
+    faces = [x for x in sels if x and x[0] == "f"]
+    if faces:
+        n = modeling.revolve(cage, faces[0][1], axis, n_seg)
+    elif loops:
+        prof = _weld_points(cage, loops[0])
+        n = modeling.revolve(cage, 0, axis, n_seg, profile=prof, closed=True)
+    elif segments_xyz:
+        edges = [tuple(_weld_points(cage, sg)) for sg in segments_xyz]
+        path, closed = modeling.chain_from_edges(edges)
+        n = modeling.revolve(cage, 0, axis, n_seg, profile=path, closed=closed)
+    else:
+        raise ValueError(_T("a face (the profile)"))
+    cage.prune()
+    return Result(None, _T('Revolved: {n} faces added', n=n))
 
 
 def _loft(cage, sel, value, axis, pending):

@@ -114,7 +114,8 @@ def _rotate_about(p, axis, ang):
     return _add(_add(_mul(p, c), _mul(_cross(k, p), s)), _mul(k, _dot(k, p) * (1.0 - c)))
 
 
-def revolve(cage: Cage, face: int, axis: str, segments: int = 8, angle: float = 360.0) -> int:
+def revolve(cage: Cage, face: int, axis: str, segments: int = 8, angle: float = 360.0,
+            profile=None, closed: bool = True) -> int:
     """Turn the profile face round the X, Y or Z axis through the origin into a
     surface of revolution made of ``segments`` steps. The profile stays in
     place unless it is the whole cage (then it is used up). A full turn closes
@@ -127,7 +128,7 @@ def revolve(cage: Cage, face: int, axis: str, segments: int = 8, angle: float = 
         raise ValueError(_T("A revolution needs at least 3 segments"))
     if not 0.0 < angle <= 360.0:
         raise ValueError(_T("The angle must be between 0 and 360 degrees"))
-    prof = list(cage.faces[face])
+    prof = list(profile) if profile is not None else list(cage.faces[face])
     ax = AXES[axis]
     tol = _tolerance(cage)
     full = angle >= 359.999
@@ -166,6 +167,8 @@ def revolve(cage: Cage, face: int, axis: str, segments: int = 8, angle: float = 
         for k in range(segments):
             k2 = (k + 1) % steps if full else k + 1
             for j in range(n):
+                if not closed and j == n - 1:
+                    continue                          # an open profile does not wrap round
                 j2 = (j + 1) % n
                 u0, v0, v1, u1 = ids[k][j], ids[k][j2], ids[k2][j2], ids[k2][j]
                 if on_axis[j] and on_axis[j2]:
@@ -175,12 +178,12 @@ def revolve(cage: Cage, face: int, axis: str, segments: int = 8, angle: float = 
                 cage.faces.append(tuple(quad))
                 cage.colors.append(None)
                 added += 1
-        if not full:                                  # close the two ends with copies of the profile
+        if not full and closed:                       # close the two ends with copies of the profile
             for k in (0, steps - 1):
                 cage.faces.append(tuple(dict.fromkeys(ids[k])))
                 cage.colors.append(None)
                 added += 1
-        if len(cage.faces) - added == 1:               # the profile was the whole cage: used up
+        if profile is None and len(cage.faces) - added == 1:   # the profile was the whole cage: used up
             cage.faces.pop(face)
             cage.colors.pop(face)
             cage.prune()

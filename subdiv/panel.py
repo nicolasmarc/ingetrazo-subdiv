@@ -521,9 +521,14 @@ class SubdPanel(QWidget):
     def _loose_for_tool(self):
         """For Loft and Sweep: the plain drawing to use, or None when the SubD
         selection is already enough (or there is no usable drawing)."""
-        if self.tool not in ("loft", "sweep"):
+        if self.tool not in ("loft", "sweep", "revolve"):
             return None
         sels = self._sels()
+        if self.tool == "revolve":
+            if sels and sels[0][0] == "f":
+                return None
+            loops, segments = self._loose()
+            return (loops, segments) if (loops or segments) else None
         nf = sum(1 for x in sels if x and x[0] == "f")
         ne = sum(1 for x in sels if x and x[0] == "e")
         if self.tool == "loft" and nf >= 2:
@@ -566,6 +571,8 @@ class SubdPanel(QWidget):
             kind = (hit or sels[0])[0]
             keys = list(self.MENU_TOOLS.get(kind, ()))
         loops, segments = self._loose()
+        if (loops or segments) and "revolve" not in keys:
+            keys.append("revolve")
         if len(loops) >= 2 and "loft" not in keys:
             keys.append("loft")
         if (loops or sels) and segments and "sweep" not in keys:
@@ -933,7 +940,10 @@ class SubdPanel(QWidget):
                 cage = cage.copy()
             if loose is not None:
                 loops, segments = loose
-                if self.tool == "loft":
+                if self.tool == "revolve":
+                    res = subdiv_ops.revolve_loose(cage, self._sels(), loops, segments,
+                                                   self._metres(), self._mode())
+                elif self.tool == "loft":
                     res = subdiv_ops.loft_loose(cage, self._sels(), loops, self._metres(),
                                                 self._mode())
                 else:
