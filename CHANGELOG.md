@@ -5,6 +5,7 @@
 - Compact panel: icon-only tool buttons (name and description shown above the value), "Join, split, convert" and "Smoothing, finish, handles" are collapsible and closed at first.
 - "Pick on the skin" is now on by default and sits under the status line; with the cage shown, a cage point or edge you aim at still wins, otherwise the skin is picked. Edge picking on the skin also considers the neighbouring faces and is more tolerant.
 - The SubD panel tab now has an icon.
+- Right-click on a point, edge or face (on the cage or on the skin) opens a SubD menu with the tools that suit it, run with the panel's value.
 - Move / rotate handles are drawn (and usable) with the cage hidden.
 
 - **Eight new tools**: Revolve, Bevel, Loft, Sweep, Slice, Merge, Dissolve and Slide

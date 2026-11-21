@@ -482,4 +482,6 @@ ES = {
         "Unir, separar, convertir",
     "Smoothing, finish, handles":
         "Suavizado, acabado, tiradores",
+    "Hide cage":
+        "Ocultar la jaula",
 }

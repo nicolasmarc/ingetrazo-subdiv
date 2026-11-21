@@ -482,4 +482,6 @@ FR = {
         "Joindre, séparer, convertir",
     "Smoothing, finish, handles":
         "Lissage, finition, poignées",
+    "Hide cage":
+        "Masquer la cage",
 }

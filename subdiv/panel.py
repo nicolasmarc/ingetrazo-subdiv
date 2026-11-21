@@ -38,7 +38,7 @@ import logging
 import math
 
 import numpy as np
-from PySide6.QtCore import QEvent, QObject, QPointF, QSize, Qt
+from PySide6.QtCore import QEvent, QObject, QPointF, QSize, Qt, QTimer
 from PySide6.QtGui import QBrush, QColor, QPen, QPolygonF, QVector3D
 from PySide6.QtWidgets import (
     QButtonGroup, QCheckBox, QComboBox, QDoubleSpinBox, QGridLayout,
@@ -496,6 +496,47 @@ class SubdPanel(QWidget):
         self._units_refresh()
         self._configure_value()
         self._sync()
+
+    # ---- right-click menu ---------------------------------------------------------------
+    MENU_TOOLS = {
+        "v": ("edit", "crease", "merge", "dissolve"),
+        "e": ("edit", "crease", "grow_edge", "offset_edge", "squeeze", "divide", "bevel",
+              "slide", "loft", "sweep", "bridge", "merge", "dissolve"),
+        "f": ("edit", "grow_face", "inset_face", "stretch", "divide", "shell", "revolve",
+              "bridge", "merge", "delete_face"),
+    }
+
+    def context_menu(self, menu, _selection) -> None:
+        """Right-click on a point, edge or face of the active SubD piece (on the
+        cage or on the skin): the tools that suit it, run with the panel's value."""
+        vp = self.app.viewport
+        where = getattr(vp, "_context_pixel", None)
+        g = self.active_group()
+        if g is None or where is None:
+            return
+        hit = self.pick_item(None, float(where[0]), float(where[1]))
+        if hit is not None and hit not in self._sels():
+            self.on_select(hit)
+            vp.update()
+        sels = self._sels()
+        if hit is None and not sels:
+            return
+        kind = (hit or sels[0])[0]
+        for key in self.MENU_TOOLS.get(kind, ()):
+            spec = subdiv_ops.SPECS[key]
+            act = menu.addAction(_icon(spec.icon), T(spec.label))
+            act.setToolTip(self._tip(spec))
+            act.triggered.connect(lambda _c=False, k=key: QTimer.singleShot(0, lambda: self._run_tool(k)))
+        menu.addSeparator()
+        act = menu.addAction(T("Hide cage") if self.show_cage.isChecked() else T("Show cage"))
+        act.triggered.connect(lambda _c=False: self.show_cage.toggle())
+
+    def _run_tool(self, key: str) -> None:
+        self._pick_tool(key)
+        btn = getattr(self, f"_btn_{key}", None)
+        if btn is not None:
+            btn.setChecked(True)
+        self.apply()
 
     # ---- document / selection --------------------------------------------------------
     def refresh(self) -> None:
@@ -1642,6 +1683,8 @@ def setup(app) -> None:
     app.on_document_changed(panel.refresh)
     app.add_overlay(panel.draw)
     app.add_pickable(panel.pick_item, on_select=panel.on_select)
+    if hasattr(app, "add_context_menu"):
+        app.add_context_menu(panel.context_menu)
     panel.axis.currentIndexChanged.connect(lambda _i: app.viewport.update())
     panel._filter = _DragFilter(panel)                 # freestyle dragging
     app.viewport.installEventFilter(panel._filter)
