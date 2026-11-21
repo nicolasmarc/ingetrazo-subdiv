@@ -494,4 +494,8 @@ FR = {
         "{n} faces collées en nouvelle pièce SubD : la déplacer avec les poignées",
     "Turn the selected face (the profile, drawn away from the axis) round the X, Y or Z axis through the origin into a body of revolution. Points on the axis become poles. The profile can also be a plain face or plain lines from your drawing (select them in the model, then Apply).":
         "Fait tourner la face sélectionnée (le profil, dessiné à l'écart de l'axe) autour de l'axe X, Y ou Z passant par l'origine pour en faire un corps de révolution. Les points sur l'axe deviennent des pôles. Le profil peut aussi être une face simple ou des lignes simples de votre dessin (les sélectionner dans le modèle, puis Appliquer).",
+    "Right-click: SubD tools only":
+        "Clic droit : outils SubD seulement",
+    "Right-click on the SubD piece shows a menu of SubD tools only (smoothing 0 to 4, cage, copy, paste). Untick to get the model's usual menu with the SubD tools inside.":
+        "Un clic droit sur la pièce SubD n'affiche que les outils SubD (lissage de 0 à 4, cage, copier, coller). Décocher pour retrouver le menu habituel du modèle, avec les outils SubD à l'intérieur.",
 }

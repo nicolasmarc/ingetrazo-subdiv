@@ -285,6 +285,12 @@ class SubdPanel(QWidget):
         lay.addWidget(self.sharp_create)
 
         lay = self._section(main, T("Smoothing, finish, handles"))
+        self.menu_only = QCheckBox(T("Right-click: SubD tools only"))
+        self.menu_only.setChecked(True)
+        self.menu_only.setToolTip(T("Right-click on the SubD piece shows a menu of SubD tools "
+                                    "only (smoothing 0 to 4, cage, copy, paste). Untick to get "
+                                    "the model's usual menu with the SubD tools inside."))
+        lay.addWidget(self.menu_only)
         look = QHBoxLayout()
         look.addWidget(QLabel(T("Smoothing")))
         self.levels = QSpinBox()
@@ -551,12 +557,37 @@ class SubdPanel(QWidget):
               "bridge", "merge", "delete_face"),
     }
 
-    def context_menu(self, menu, _selection) -> None:
+    def context_event(self, ev) -> bool:
+        """Right-click on the SubD piece: our own menu, with only the SubD tools (the
+        model's usual menu stays for everything else, or when this is switched off)."""
+        if not self.menu_only.isChecked() or self.active_group() is None:
+            return False
+        x, y = float(ev.pos().x()), float(ev.pos().y())
+        if self.pick_item(None, x, y) is None:
+            return False
+        from PySide6.QtWidgets import QMenu
+        menu = QMenu(self.app.viewport)
+        self.context_menu(menu, [], (x, y))
+        if not menu.actions():
+            return False
+        menu.exec(ev.globalPos())
+        return True
+
+    def _set_levels(self, n) -> None:
+        """Smoothing from the right-click menu: 0 to 4, or Auto."""
+        if n is None:
+            self.auto.setChecked(True)
+        else:
+            self.auto.setChecked(False)
+            self.levels.setValue(int(n))
+        self.update_look()
+
+    def context_menu(self, menu, _selection, where=None) -> None:
         """Right-click on a point, edge or face of the active SubD piece (on the cage or
         on the skin): the tools that suit it. A tool that takes a value asks for it
         in a small box at the cursor, so the panel is not needed."""
         vp = self.app.viewport
-        where = getattr(vp, "_context_pixel", None)
+        where = where or getattr(vp, "_context_pixel", None)
         if where is None:
             return
         self._menu_pos = vp.mapToGlobal(QPoint(int(where[0]), int(where[1])))
@@ -591,6 +622,17 @@ class SubdPanel(QWidget):
             menu.addAction(T("Paste faces"), self.paste_faces)
         if g is not None:
             menu.addSeparator()
+            sm = menu.addMenu(T("Smoothing"))
+            cur = _state(g)[1]
+            for n in range(5):
+                a = sm.addAction(str(n))
+                a.setCheckable(True)
+                a.setChecked(not self.auto.isChecked() and cur == n)
+                a.triggered.connect(lambda _c=False, k=n: QTimer.singleShot(0, lambda: self._set_levels(k)))
+            a = sm.addAction(T("Auto"))
+            a.setCheckable(True)
+            a.setChecked(self.auto.isChecked())
+            a.triggered.connect(lambda _c=False: QTimer.singleShot(0, lambda: self._set_levels(None)))
             act = menu.addAction(T("Hide cage") if self.show_cage.isChecked() else T("Show cage"))
             act.triggered.connect(lambda _c=False: self.show_cage.toggle())
 
@@ -1788,6 +1830,8 @@ class _DragFilter(QObject):
             t = ev.type()
             if t == QEvent.MouseButtonPress and ev.button() == Qt.LeftButton:
                 return bool(self.panel.mouse_press(ev))
+            if t == QEvent.ContextMenu:
+                return bool(self.panel.context_event(ev))
             if t == QEvent.MouseMove:
                 return bool(self.panel.mouse_move(ev))
             if t == QEvent.MouseButtonRelease and ev.button() == Qt.LeftButton:

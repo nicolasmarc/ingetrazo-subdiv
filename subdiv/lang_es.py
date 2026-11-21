@@ -494,4 +494,8 @@ ES = {
         "{n} caras pegadas como pieza SubD nueva: muévela con los tiradores",
     "Turn the selected face (the profile, drawn away from the axis) round the X, Y or Z axis through the origin into a body of revolution. Points on the axis become poles. The profile can also be a plain face or plain lines from your drawing (select them in the model, then Apply).":
         "Gira la cara seleccionada (el perfil, dibujado lejos del eje) alrededor del eje X, Y o Z que pasa por el origen para hacer un cuerpo de revolución. Los puntos sobre el eje se convierten en polos. El perfil también puede ser una cara simple o líneas simples de tu dibujo (selecciónalas en el modelo y pulsa Aplicar).",
+    "Right-click: SubD tools only":
+        "Clic derecho: solo herramientas SubD",
+    "Right-click on the SubD piece shows a menu of SubD tools only (smoothing 0 to 4, cage, copy, paste). Untick to get the model's usual menu with the SubD tools inside.":
+        "El clic derecho sobre la pieza SubD muestra solo las herramientas SubD (suavizado de 0 a 4, jaula, copiar, pegar). Desmárcalo para recuperar el menú habitual del modelo, con las herramientas SubD dentro.",
 }

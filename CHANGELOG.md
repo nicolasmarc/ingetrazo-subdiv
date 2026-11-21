@@ -9,6 +9,7 @@
 - Revolve, Loft and Sweep accept plain faces and lines from the drawing (select them in the model, then Apply); no SubD group is needed first.
 - Tools that take a value (Bevel, Offset…) ask for it in a small box at the cursor when run from the right-click menu.
 - Ctrl+C / Ctrl+V (and menu entries) copy selected SubD faces and paste them as a new SubD piece.
+- Right-click on the SubD piece opens a menu of SubD tools only (switchable in "Smoothing, finish, handles"), with Smoothing 0 to 4 / Auto.
 - Move / rotate handles are drawn (and usable) with the cage hidden.
 
 - **Eight new tools**: Revolve, Bevel, Loft, Sweep, Slice, Merge, Dissolve and Slide
