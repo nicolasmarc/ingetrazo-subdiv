@@ -1734,27 +1734,45 @@ class SubdPanel(QWidget):
     _hover_t = 0.0
 
     def hover_move(self, ev) -> bool:
-        """A mouse move with no button down: find what a click here would select."""
+        """A mouse move with no button down: find what a click here would select.
+        Moves come faster than we need: one is handled at once, and the last one is
+        always handled a moment later, so the highlight never stays where the mouse was."""
         import time
-        vp = self.app.viewport
         now = time.monotonic()
+        self._hover_last = (ev.position().x(), ev.position().y(), bool(
+            ev.buttons() or ev.modifiers() & (Qt.ControlModifier | Qt.AltModifier)))
         if now - self._hover_t < 0.03:
+            if not self._hover_timer_on:
+                self._hover_timer_on = True
+                QTimer.singleShot(40, self._hover_trailing)
             return False
         self._hover_t = now
+        self._hover_apply()
+        return False
+
+    _hover_last = None
+    _hover_timer_on = False
+
+    def _hover_trailing(self) -> None:
+        self._hover_timer_on = False
+        self._hover_t = __import__("time").monotonic()
+        self._hover_apply()
+
+    def _hover_apply(self) -> None:
+        vp = self.app.viewport
+        last = self._hover_last
         item = None
-        if (self._drag is None and self._live is None
+        if (last is not None and not last[2] and self._drag is None and self._live is None
                 and getattr(getattr(vp, "active_tool", None), "name", "") == "Select"
                 and self.active_group() is not None
-                and (self.skin_pick.isChecked() or self.show_cage.isChecked())
-                and not (ev.buttons() or ev.modifiers() & (Qt.ControlModifier | Qt.AltModifier))):
+                and (self.skin_pick.isChecked() or self.show_cage.isChecked())):
             try:
-                item = self.pick_item(None, ev.position().x(), ev.position().y())
+                item = self.pick_item(None, last[0], last[1])
             except Exception:                                    # noqa: BLE001
                 item = None
         if item != self._hover:
             self._hover = item
             vp.update()
-        return False
 
     def clear_hover(self) -> None:
         if self._hover is not None:
@@ -1830,6 +1848,7 @@ class SubdPanel(QWidget):
                 live = drag is not None and drag.get("preview") is not None
                 cage = drag["preview"] if live else _state(g0)[0]
                 if cage.verts:
+                    self._draw_plane(painter, cage)       # the symmetry plane too
                     if live:
                         self._draw_ghost(painter, drag["ghost"])
                     self._draw_handles(painter, cage)

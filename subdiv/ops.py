@@ -920,13 +920,13 @@ def pick_skin(cage: Cage, skin: Skin, xs, ys, front, px: float, py: float, ray,
     lens = [math.hypot(xs[face[i]] - xs[face[(i + 1) % len(face)]],
                        ys[face[i]] - ys[face[(i + 1) % len(face)]]) for i in range(len(face))]
     size = min(lens) if lens else tol
-    tol_v = min(tol * 2.0, max(7.0, 0.42 * size))         # points are easy to grab
+    tol_v = min(tol * 1.35, max(6.0, 0.3 * size))        # easy to grab, still near the cursor
     tol_e = min(tol * 0.85, max(3.5, 0.2 * size))
     best, best_score = None, 1.0
     for fj in near:
         for v in cage.faces[fj]:
             if front[v]:
-                score = (0.8 if fj != fi else 0.75) * math.hypot(xs[v] - px, ys[v] - py) / tol_v
+                score = (0.9 if fj != fi else 0.85) * math.hypot(xs[v] - px, ys[v] - py) / tol_v
                 if score < best_score:
                     best, best_score = ("v", v), score
     for fj in near:

@@ -2,6 +2,8 @@
 
 ## 1.4 (trial)
 
+- The symmetry plane is drawn whether the cage is shown or not.
+- Hover detection: the last mouse move is always handled (a fast exit to empty space no longer leaves the highlight on the surface), and the point zone is back to a smaller size so it no longer reaches for far-away points.
 - Slice shows its cutting plane as a see-through sheet (it follows the offset and the X/Y/Z choice, also while you adjust); the tool starts on Z.
 - The move and rotate handles always show the three axes: the direction list (X/Y/Z) no longer reduces them to one ring and one arrow.
 - Sweep from a face of the piece: the tube now grows out of that face and is welded to it (the face goes), so the piece is no longer cut in two.
