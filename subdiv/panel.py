@@ -163,8 +163,10 @@ class SubdPanel(QWidget):
         self.axis.setToolTip(T("Direction for Edit, Stretch and Squeeze "
                              "(Auto: the face's normal / ring)"))
         vrow.addWidget(self.axis)
-        self.axis.currentIndexChanged.connect(lambda *_: self.app.viewport.update())
-        self.value.valueChanged.connect(lambda *_: self.app.viewport.update())
+        self.axis.currentIndexChanged.connect(lambda *_: (self._refresh_auto_ghost(),
+                                                          self.app.viewport.update()))
+        self.value.valueChanged.connect(lambda *_: (self._refresh_auto_ghost(),
+                                                    self.app.viewport.update()))
         self.side = QComboBox()
         for text, data in ((T("Outside"), "outside"), (T("Inside"), "inside"), (T("Centred"), "center")):
             self.side.addItem(text, data)
@@ -184,6 +186,17 @@ class SubdPanel(QWidget):
         self.ends.setToolTip(T("Loft and Sweep: close the two ends with a face, or leave "
                              "the surface open."))
         vrow.addWidget(self.ends)
+        self.twist = QDoubleSpinBox()
+        self.twist.setDecimals(0)
+        self.twist.setRange(-360.0, 360.0)
+        self.twist.setSingleStep(15.0)
+        self.twist.setSuffix(" °")
+        self.twist.setPrefix(T("Twist") + " ")
+        self.twist.setToolTip(T("Loft: turn each section against the one before, in steps of "
+                              "one point of the section (a 4-point section turns by 90°)."))
+        self.twist.valueChanged.connect(lambda *_: self._refresh_auto_ghost())
+        self.ends.currentIndexChanged.connect(lambda *_: self._refresh_auto_ghost())
+        vrow.addWidget(self.twist)
         lay.addLayout(vrow)
 
         self.selection_label = QLabel()
@@ -324,8 +337,8 @@ class SubdPanel(QWidget):
         upd.setToolTip(T("Rebuild the surface with this smoothing and these lines."))
         upd.clicked.connect(self.update_look)
         flip = QPushButton(T("Flip faces"))
-        flip.setToolTip(T("Blue faces are seen from behind. Flip turns the whole piece "
-                        "inside out so the front and the back swap."))
+        flip.setToolTip(T("Blue faces are seen from behind. Flip turns over the connected part that "
+                        "holds the selected face; with nothing selected, the whole group."))
         flip.clicked.connect(self.flip)
         urow = QHBoxLayout()
         urow.addWidget(upd)
@@ -377,6 +390,7 @@ class SubdPanel(QWidget):
         self.levels.setEnabled(not self.auto.isChecked())
         getattr(self, f"_btn_{self.tool}").setChecked(True)
         self._pick_tool(self.tool)
+        self._built = True
         self.refresh()
 
     # ---- helpers ---------------------------------------------------------------------
@@ -414,9 +428,57 @@ class SubdPanel(QWidget):
         self.side.setVisible(self.tool == "shell")
         self.cut.setVisible(self.tool == "divide")
         self.ends.setVisible(self.tool in ("loft", "sweep"))
+        self.twist.setVisible(self.tool == "loft")
         suffix = T("  (waiting for the second opening)") if self.pending else ""
         self.selection_label.setText(subdiv_ops.describe_many(self._sels()) + suffix
                                      + self._loose_note())
+        self._refresh_auto_ghost()
+
+    PREVIEW_TOOLS = ("loft", "sweep", "revolve")
+    _auto_ghost = None
+
+    def _refresh_auto_ghost(self) -> None:
+        """Loft, Sweep and Revolve show what they would make as soon as what they need is
+        selected, before Apply, so you see at once whether it works."""
+        ghost = None
+        if not getattr(self, "_built", False):                  # the panel is still being made
+            return
+        if self.tool in self.PREVIEW_TOOLS and self._box_dlg is None and self._live is None:
+            try:
+                _g, cg, _lv, _ln, _res = self._compute()
+                verts, faces = cg.smooth(1 if len(cg.faces) > 150 else 2)
+                ghost = (verts, {(min(f[i], f[(i + 1) % len(f)]), max(f[i], f[(i + 1) % len(f)]))
+                                 for f in faces for i in range(len(f))})
+            except Exception:                                    # noqa: BLE001
+                ghost = None
+        if ghost is not None or self._auto_ghost is not None:
+            self._auto_ghost = ghost
+            self.app.viewport.update()
+
+    def cancel_tool(self) -> bool:
+        """Esc: leave the tool and make nothing (back to Edit cage, nothing selected)."""
+        busy = (self.tool != "edit" or self.pending is not None or self._auto_ghost is not None
+                or self._bridge_first is not None)
+        if not busy:
+            return False
+        self.pending = None
+        self._bridge_first = None
+        self._auto_ghost = None
+        if self.tool != "edit":
+            btn = getattr(self, "_btn_edit", None)
+            if btn is not None:
+                btn.setChecked(True)
+            self._pick_tool("edit")
+        self._clear_sel()
+        vp = self.app.viewport
+        vp.clear_extension_pick()
+        try:
+            vp.scene.select([])
+        except Exception:                                        # noqa: BLE001
+            pass
+        self._say(T("Cancelled — nothing made"))
+        vp.update()
+        return True
 
     def _loose_note(self) -> str:
         """What plain drawing Loft / Sweep / Revolve will use (so you see it was seen)."""
@@ -786,6 +848,20 @@ class SubdPanel(QWidget):
                 combo.addItem(src.itemText(i), src.itemData(i))
             combo.setCurrentIndex(src.currentIndex())
             col.addWidget(combo)
+        twist = None
+        if self.tool == "loft":
+            row = QHBoxLayout()
+            row.addWidget(QLabel(T("Twist")))
+            twist = QDoubleSpinBox()
+            twist.setCursor(Qt.ArrowCursor)
+            twist.setDecimals(0)
+            twist.setRange(-360.0, 360.0)
+            twist.setSingleStep(15.0)
+            twist.setSuffix(" °")
+            twist.setValue(self.twist.value())
+            twist.setKeyboardTracking(False)
+            row.addWidget(twist, 1)
+            col.addLayout(row)
         radius = None
         if self.tool == "edit" and self.soft_box.isChecked():
             row = QHBoxLayout()
@@ -805,7 +881,8 @@ class SubdPanel(QWidget):
         ok.clicked.connect(dlg.accept)
         hint.addWidget(ok)
         col.addLayout(hint)
-        saved = (self.value.value(), src.currentIndex() if src is not None else None)
+        saved = (self.value.value(), src.currentIndex() if src is not None else None,
+                 self.twist.value())
 
         def preview(*_a):
             """Show the result for what the window holds, while it is still open."""
@@ -813,6 +890,10 @@ class SubdPanel(QWidget):
             if box is not None:
                 self.value.setValue(box.value())
             self.value.blockSignals(False)
+            if twist is not None:
+                self.twist.blockSignals(True)
+                self.twist.setValue(twist.value())
+                self.twist.blockSignals(False)
             if combo is not None:
                 src.blockSignals(True)
                 src.setCurrentIndex(combo.currentIndex())
@@ -829,6 +910,8 @@ class SubdPanel(QWidget):
             box.valueChanged.connect(preview)
         if combo is not None:
             combo.currentIndexChanged.connect(preview)
+        if twist is not None:
+            twist.valueChanged.connect(preview)
 
         def done(accepted: bool):
             self._box_pos = dlg.pos()
@@ -841,6 +924,7 @@ class SubdPanel(QWidget):
                 self.value.blockSignals(False)
                 if src is not None and saved[1] is not None:
                     src.setCurrentIndex(saved[1])
+                self.twist.setValue(saved[2])
                 return
             if box is not None:
                 box.interpretText()
@@ -851,6 +935,9 @@ class SubdPanel(QWidget):
             if radius is not None:
                 radius.interpretText()
                 self.soft_radius.setValue(radius.value())
+            if twist is not None:
+                twist.interpretText()
+                self.twist.setValue(twist.value())
             if then is not None:
                 QTimer.singleShot(0, then)
         dlg.accepted.connect(lambda: done(True))
@@ -1008,6 +1095,8 @@ class SubdPanel(QWidget):
     def _draw_live(self, painter) -> None:
         if self._box_ghost is not None:
             self._draw_ghost(painter, self._box_ghost)
+        elif self._auto_ghost is not None and self._live is None:
+            self._draw_ghost(painter, self._auto_ghost)
         live = self._live
         if live is None:
             return
@@ -1343,7 +1432,8 @@ class SubdPanel(QWidget):
         if self.tool == "slide":
             return subdiv_ops.slide_items(cage, self._sels(), self._metres())
         if self.tool == "loft":
-            return subdiv_ops.loft_items(cage, self._sels(), self._metres(), self._mode())
+            return subdiv_ops.loft_items(cage, self._sels(), self._metres(), self._mode(),
+                                         twist_deg=float(self.twist.value()))
         if self.tool == "sweep":
             return subdiv_ops.sweep_items(cage, self._sels(), self._metres(), self._mode())
         if self.tool == "bridge":                      # click one end, Shift+click the other
@@ -1381,7 +1471,7 @@ class SubdPanel(QWidget):
                                                self._metres(), self._mode())
             elif self.tool == "loft":
                 res = subdiv_ops.loft_loose(cage, self._sels(), loops, self._metres(),
-                                            self._mode())
+                                            self._mode(), twist_deg=float(self.twist.value()))
             else:
                 res = subdiv_ops.sweep_loose(cage, self._sels(), loops, segments,
                                              self._metres(), self._mode())
@@ -1409,6 +1499,7 @@ class SubdPanel(QWidget):
             return
         self.pending = None
         self._bridge_first = None
+        self._auto_ghost = None
         self._commit(g, cage, levels, lines)
         self.sel = res.selection
         self.extra = []
@@ -1614,9 +1705,15 @@ class SubdPanel(QWidget):
             self._say(T("No SubD group to flip"))
             return
         cage = _state(g)[0].copy()
-        cage.flip()
+        picked = {x[1] for x in self._sels() if x and x[0] == "f" and 0 <= x[1] < len(cage.faces)}
+        part = subdiv_ops.connected_faces(cage, picked) if picked else None
+        cage.flip(sorted(part) if part else None)
         self._commit(g, cage, int(self.levels.value()), self.lines.currentData())
-        self._say(T("Faces flipped"))
+        if part and len(part) < len(cage.faces):
+            self._say(T("Flipped the connected part of the selected face(s): {n} faces",
+                        n=len(part)))
+        else:
+            self._say(T("Whole piece flipped (select a face to flip only its part)"))
 
     def finish(self) -> None:
         """Stop treating the active group as SubD: it becomes an ordinary
@@ -2475,7 +2572,17 @@ class _DragFilter(QObject):
                 QTimer.singleShot(60, self.panel._sync)       # the drawing selection may have changed
                 return bool(self.panel.mouse_release(ev))
             if t == QEvent.KeyPress and ev.key() == Qt.Key_Escape:
-                return bool(self.panel.cancel_drag())
+                if self.panel.cancel_drag():
+                    return True
+                if self.panel._live is None and self.panel._box_dlg is None:
+                    return bool(self.panel.cancel_tool())
+                return False
+            if (t == QEvent.ShortcutOverride and ev.key() == Qt.Key_Escape
+                    and self.panel._live is None and self.panel._box_dlg is None
+                    and (self.panel.tool != "edit" or self.panel.pending is not None
+                         or self.panel._auto_ghost is not None)):
+                ev.accept()                          # the model's Esc must not take it first
+                return True
             if t in (QEvent.ShortcutOverride, QEvent.KeyPress) and \
                     ev.key() in (Qt.Key_Delete, Qt.Key_Backspace) and not ev.modifiers():
                 vp = self.panel.app.viewport                # Supr: the SubD item picked

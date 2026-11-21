@@ -522,4 +522,20 @@ FR = {
         "Supprimé — Ctrl+Z pour annuler",
     "Drawing: {f} face(s), {l} line(s)":
         "Dessin : {f} face(s), {l} ligne(s)",
+    "Selected faces flipped":
+        "Faces sélectionnées retournées",
+    "Whole piece flipped (select faces to flip only those)":
+        "Pièce entière retournée (sélectionne des faces pour ne retourner qu'elles)",
+    "Loft: turn each section against the one before, in steps of one point of the section (a 4-point section turns by 90°).":
+        "Loft : tourne chaque section par rapport à la précédente, par pas d'un point de la section (une section à 4 points tourne de 90°).",
+    "Blue faces are seen from behind. Flip turns the selected faces over; with no face selected it turns the whole piece inside out.":
+        "Les faces bleues sont vues de dos. Retourner inverse les faces sélectionnées ; sans face sélectionnée, toute la pièce est retournée.",
+    "Cancelled — nothing made":
+        "Annulé — rien n'a été créé",
+    "Flipped the connected part of the selected face(s): {n} faces":
+        "Partie connectée de la face sélectionnée retournée : {n} faces",
+    "Whole piece flipped (select a face to flip only its part)":
+        "Groupe entier retourné (sélectionne une face pour ne retourner que sa partie)",
+    "Blue faces are seen from behind. Flip turns over the connected part that holds the selected face; with nothing selected, the whole group.":
+        "Les faces bleues sont vues de dos. Retourner inverse la partie connectée qui contient la face sélectionnée ; sans sélection, tout le groupe.",
 }

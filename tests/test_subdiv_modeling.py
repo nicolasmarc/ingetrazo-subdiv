@@ -559,3 +559,31 @@ def test_sweep_from_a_face_of_the_piece_grows_out_of_it_and_stays_one_closed_pie
     ef = cage.edge_faces()
     assert all(len(f) == 2 for f in ef.values())          # closed, no hole, no cut
     assert len(cage.faces) == 14                          # 6 - the profile + 2x4 sides + end cap
+
+
+def test_connected_faces_and_flipping_only_one_body():
+    cage = Cage.box((1, 1, 1))
+    n_box = len(cage.faces)
+    a = [cage._new_vert(p) for p in ((3, 0, 0), (4, 0, 0), (4, 1, 0), (3, 1, 0))]
+    cage.faces.append(tuple(a))
+    cage.colors.append(None)
+    assert ops.connected_faces(cage, {0}) == set(range(n_box))
+    assert ops.connected_faces(cage, {n_box}) == {n_box}
+    before = [tuple(f) for f in cage.faces]
+    cage.flip(sorted(ops.connected_faces(cage, {n_box})))
+    changed = [i for i, (x, y) in enumerate(zip(before, cage.faces)) if x != y]
+    assert changed == [n_box]
+
+
+def test_loft_twist_turns_the_second_section_and_stays_closed():
+    def build(tw):
+        c = Cage()
+        a = [c._new_vert(p) for p in ((0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0))]
+        b = [c._new_vert(p) for p in ((0, 0, 2), (1, 0, 2), (1, 1, 2), (0, 1, 2))]
+        modeling.loft(c, [a, b], 1, closed_ends=True, twist_deg=tw)
+        return c
+    straight, turned = build(0), build(90)
+    assert all(len(f) == 2 for f in turned.edge_faces().values())
+    def shape(c):
+        return sorted(sorted(c.verts[v] for v in f) for f in c.faces)
+    assert shape(straight) != shape(turned)

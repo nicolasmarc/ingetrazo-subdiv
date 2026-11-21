@@ -720,7 +720,7 @@ def _make_surface(cage: Cage, rings, closed_ends: bool, closed_path: bool = Fals
 
 
 def loft(cage: Cage, sections: Sequence[Sequence[int]], segments: int = 1,
-         closed_ends: bool = True, twist: int = 0, faces=None) -> int:
+         closed_ends: bool = True, twist: int = 0, faces=None, twist_deg: float = 0.0) -> int:
     """A new surface through several closed sections, in the order given:
     ``sections`` are loops of points (a face's corners, or a closed edge loop).
     Rings with fewer points get extra ones, each ring is lined up with the one
@@ -740,7 +740,9 @@ def loft(cage: Cage, sections: Sequence[Sequence[int]], segments: int = 1,
     try:
         rings = [_grow_ring(loops[0], m)]
         for lp in loops[1:]:
-            rings.append(_align(rings[-1], _grow_ring(lp, m), twist if len(rings) == 1 else 0))
+            step = int(round(twist_deg / (360.0 / m))) if twist_deg else 0   # per section, in points
+            rings.append(_align(rings[-1], _grow_ring(lp, m),
+                                (twist if len(rings) == 1 else 0) + step))
         # the first ring keeps its own order; later ones are lined up on it
         full = []
         k = len(rings)

@@ -546,12 +546,13 @@ def _sections(cage, sels):
     return out, faces
 
 
-def loft_items(cage, sels, value, axis="closed") -> Result:
+def loft_items(cage, sels, value, axis="closed", twist_deg=0.0) -> Result:
     sections, faces = _sections(cage, sels)
     if len(sections) < 2:
         raise ValueError(_T("Loft: select two or more faces (click one, Shift+click the others)"))
     sections, faces = _order_both(cage, sections, faces)
-    n = modeling.loft(cage, sections, int(round(value)), closed_ends=axis != "open", faces=faces)
+    n = modeling.loft(cage, sections, int(round(value)), closed_ends=axis != "open", faces=faces,
+                       twist_deg=twist_deg)
     return Result(None, _T('Lofted through {k} sections: {n} faces added', k=len(sections), n=n))
 
 
@@ -613,7 +614,7 @@ def _order_both(cage: Cage, sections, faces):
     return [sections[i] for i in idx], [faces[i] for i in idx]
 
 
-def loft_loose(cage: Cage, sels, loops, value, axis="closed") -> Result:
+def loft_loose(cage: Cage, sels, loops, value, axis="closed", twist_deg=0.0) -> Result:
     """Loft through the selected cage faces and plain faces (``loops`` of xyz)."""
     fidx = [x[1] for x in sels if x and x[0] == "f"]
     sections = [list(cage.faces[f]) for f in fidx]
@@ -623,7 +624,8 @@ def loft_loose(cage: Cage, sels, loops, value, axis="closed") -> Result:
     if len(sections) < 2:
         raise ValueError(_T("Loft: select two or more faces (click one, Shift+click the others)"))
     sections, faces = _order_both(cage, sections, faces)
-    n = modeling.loft(cage, sections, int(round(value)), closed_ends=axis != "open", faces=faces)
+    n = modeling.loft(cage, sections, int(round(value)), closed_ends=axis != "open", faces=faces,
+                       twist_deg=twist_deg)
     cage.prune()
     return Result(None, _T('Lofted through {k} sections: {n} faces added', k=len(sections), n=n))
 
@@ -941,6 +943,25 @@ def pick_skin(cage: Cage, skin: Skin, xs, ys, front, px: float, py: float, ray,
                 if score < best_score:
                     best, best_score = ("e",) + ekey(a, b), score
     return best or ("f", fi)
+
+
+def connected_faces(cage: Cage, start) -> set[int]:
+    """The faces joined to the ``start`` faces through shared edges: the separate body
+    (or open surface) they belong to, inside a group that may hold several."""
+    ef = cage.edge_faces()
+    nbr: dict[int, set[int]] = {}
+    for faces in ef.values():
+        for a in faces:
+            nbr.setdefault(a, set()).update(faces)
+    seen = set(start)
+    todo = list(start)
+    while todo:
+        f = todo.pop()
+        for g in nbr.get(f, ()):
+            if g not in seen:
+                seen.add(g)
+                todo.append(g)
+    return seen
 
 
 def edge_loop(cage: Cage, a: int, b: int) -> list[tuple[int, int]]:

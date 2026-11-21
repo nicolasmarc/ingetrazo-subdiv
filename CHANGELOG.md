@@ -2,6 +2,10 @@
 
 ## 1.4 (trial)
 
+- Loft, Sweep and Revolve show a preview of their result as soon as what they need is selected, before Apply.
+- Esc leaves the tool and makes nothing (back to Edit cage, selection cleared).
+- Loft has a Twist setting (degrees, in steps of one point of the section), in the panel and in the right-click box.
+- Flip faces turns over only the connected part that holds the selected face (a group can hold several bodies); with nothing selected it still flips the whole group.
 - The symmetry plane is drawn whether the cage is shown or not.
 - Hover detection: the last mouse move is always handled (a fast exit to empty space no longer leaves the highlight on the surface), and the point zone is back to a smaller size so it no longer reaches for far-away points.
 - Slice shows its cutting plane as a see-through sheet (it follows the offset and the X/Y/Z choice, also while you adjust); the tool starts on Z.

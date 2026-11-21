@@ -275,9 +275,12 @@ class Cage:
         """The smoothed surface at ``levels`` Catmull-Clark steps (creases kept)."""
         return subdivide(self.verts, self.faces, levels, self.creases, self.vcreases)
 
-    def flip(self) -> None:
-        """Reverse every face (what was the back becomes the front)."""
-        self.faces = [tuple(reversed(f)) for f in self.faces]
+    def flip(self, faces=None) -> None:
+        """Reverse faces (what was the back becomes the front): every face, or only the
+        ones listed."""
+        only = None if faces is None else set(faces)
+        self.faces = [tuple(reversed(f)) if only is None or i in only else f
+                      for i, f in enumerate(self.faces)]
 
     def orient(self) -> int:
         """Make the faces wind consistently (every shared edge used once in

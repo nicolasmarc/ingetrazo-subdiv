@@ -522,4 +522,20 @@ ES = {
         "Borrado — Ctrl+Z para deshacer",
     "Drawing: {f} face(s), {l} line(s)":
         "Dibujo: {f} cara(s), {l} línea(s)",
+    "Selected faces flipped":
+        "Caras seleccionadas invertidas",
+    "Whole piece flipped (select faces to flip only those)":
+        "Pieza entera invertida (selecciona caras para invertir solo esas)",
+    "Loft: turn each section against the one before, in steps of one point of the section (a 4-point section turns by 90°).":
+        "Loft: gira cada sección respecto a la anterior, en pasos de un punto de la sección (una sección de 4 puntos gira 90°).",
+    "Blue faces are seen from behind. Flip turns the selected faces over; with no face selected it turns the whole piece inside out.":
+        "Las caras azules se ven por detrás. Invertir da la vuelta a las caras seleccionadas; sin selección, a toda la pieza.",
+    "Cancelled — nothing made":
+        "Cancelado — no se creó nada",
+    "Flipped the connected part of the selected face(s): {n} faces":
+        "Parte conectada de la cara seleccionada invertida: {n} caras",
+    "Whole piece flipped (select a face to flip only its part)":
+        "Grupo entero invertido (selecciona una cara para invertir solo su parte)",
+    "Blue faces are seen from behind. Flip turns over the connected part that holds the selected face; with nothing selected, the whole group.":
+        "Las caras azules se ven por detrás. Invertir da la vuelta a la parte conectada de la cara seleccionada; sin selección, todo el grupo.",
 }
